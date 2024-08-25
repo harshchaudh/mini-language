@@ -6,14 +6,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
- * Compiles the given C file.
+#define MAX_LINE 100 // Maximum number of characters in a line
+
+/**
+ * @brief Reads a file using the given filename.
  *
- * Parameters:
- *   filename - the file to be compiled
+ * @param filename The file to be read.
+ * @return `void`
+ */
+void readFile(char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error: `%s` not found.\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    char line[MAX_LINE];
+    while (fgets(line, sizeof(line), file)) {
+        printf("%s", line);
+    }
+    printf("\n");
+
+    fclose(file);
+}
+
+/**
+ * @brief Compiles a program using the given filename.
  *
- * Returns:
- *   void
+ * Compile command: `cc -std=c11 -o filename filename.c`
+ *
+ * @param filename The file to be compiled
+ * @return `void`
  */
 void compile(char *filename)
 {
@@ -27,8 +51,7 @@ int main(int argc, char *argv[])
     if (argc < 2) {
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
-    } else {
-        exit(EXIT_SUCCESS);
     }
-    return 0;
+
+    exit(EXIT_SUCCESS);
 }
