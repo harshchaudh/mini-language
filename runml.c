@@ -70,6 +70,20 @@ void compile(char *filename)
     sprintf(command, "cc -std=c11 -o %s %s.c", filename, filename);
     system(command);
 }
+/**
+ * @brief Removes a file using the given filename.
+ *
+ * Command: `rm <<filename>>`
+ *
+ * @param filename The file to be removed
+ * @return `void`
+ */
+void removeFile(char *filename)
+{
+    char command[100];
+    sprintf(command, "rm %s", filename);
+    system(command);
+}
 
 /**
  * @brief Removes a file using the given filename.
