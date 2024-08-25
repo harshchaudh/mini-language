@@ -8,6 +8,24 @@
 
 #define MAX_LINE 100 // Maximum number of characters in a line
 
+
+/**
+ * @brief Creates a file using the given filename.
+ *
+ * @param filename The file to be created.
+ * @return `void`
+ */
+void createFile(char *filename)
+{
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        fprintf(stderr, "Error: Unable to create file `%s`.\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    fclose(file);
+}
+
 /**
  * @brief Reads a file using the given filename.
  *
@@ -34,7 +52,7 @@ void readFile(char *filename)
 /**
  * @brief Compiles a program using the given filename.
  *
- * Compile command: `cc -std=c11 -o filename filename.c`
+ * Command: `cc -std=c11 -o <<filename>> <<filename.c>>`
  *
  * @param filename The file to be compiled
  * @return `void`
