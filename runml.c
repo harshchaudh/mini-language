@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MAX_LINE 100 // Maximum number of characters in a line
 
@@ -52,15 +53,36 @@ void readFile(char *filename)
 /**
  * @brief Compiles a program using the given filename.
  *
- * Command: `cc -std=c11 -o <<filename>> <<filename.c>>`
+ * Command: `cc -std=c11 -o <<filename>> <<filename>>.c`
  *
  * @param filename The file to be compiled
  * @return `void`
  */
 void compile(char *filename)
 {
+    // Remove the extension from the filename
+    char *extension = strrchr(filename, '.');
+    if (extension != NULL) {
+        *extension = '\0';
+    }
+
     char command[100];
     sprintf(command, "cc -std=c11 -o %s %s.c", filename, filename);
+    system(command);
+}
+
+/**
+ * @brief Removes a file using the given filename.
+ *
+ * Command: `rm <<filename>>`
+ *
+ * @param filename The file to be removed
+ * @return `void`
+ */
+void removeFile(char *filename)
+{
+    char command[100];
+    sprintf(command, "rm %s", filename);
     system(command);
 }
 
@@ -70,6 +92,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
+
+    char *filename = argv[1];
+    removeFile(filename);
 
     exit(EXIT_SUCCESS);
 }
