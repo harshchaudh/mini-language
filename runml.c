@@ -9,7 +9,6 @@
 
 #define MAX_LINE 100 // Maximum number of characters in a line
 
-
 /**
  * @brief Creates a file using the given filename.
  *
@@ -70,20 +69,6 @@ void compile(char *filename)
     sprintf(command, "cc -std=c11 -o %s %s.c", filename, filename);
     system(command);
 }
-/**
- * @brief Removes a file using the given filename.
- *
- * Command: `rm <<filename>>`
- *
- * @param filename The file to be removed
- * @return `void`
- */
-void removeFile(char *filename)
-{
-    char command[100];
-    sprintf(command, "rm %s", filename);
-    system(command);
-}
 
 /**
  * @brief Removes a file using the given filename.
@@ -106,9 +91,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
-
-    char *filename = argv[1];
-    removeFile(filename);
 
     exit(EXIT_SUCCESS);
 }
