@@ -6,45 +6,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAX_LINE 100 // Maximum number of characters in a line
 
 /**
  * @brief Creates a file using the given filename.
  *
+ * Format: `ml-<<pid>>.c`
  * @param filename The file to be created.
  * @return `void`
  */
 void createFile(char *filename)
 {
-    FILE *file = fopen(filename, "w");
+    __pid_t pid = getpid();
+    char pidString[10];
+    sprintf(pidString, "%d", pid);
+
+    char newFilename[10] = "ml-";
+    strcat(newFilename, pidString);
+    strcat(newFilename, ".c");
+
+    FILE *file = fopen(newFilename, "w");
     if (file == NULL) {
-        fprintf(stderr, "Error: Unable to create file `%s`.\n", filename);
+        fprintf(stderr, "Error: Unable to create file `%s`.\n", newFilename);
         exit(EXIT_FAILURE);
     }
-
-    fclose(file);
-}
-
-/**
- * @brief Reads a file using the given filename.
- *
- * @param filename The file to be read.
- * @return `void`
- */
-void readFile(char *filename)
-{
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        fprintf(stderr, "Error: `%s` not found.\n", filename);
-        exit(EXIT_FAILURE);
-    }
-
-    char line[MAX_LINE];
-    while (fgets(line, sizeof(line), file)) {
-        printf("%s", line);
-    }
-    printf("\n");
 
     fclose(file);
 }
@@ -85,9 +72,46 @@ void removeFile(char *filename)
     system(command);
 }
 
+/**
+ * @brief Removes a comment from a line.
+ *
+ * @param line The line to be processed.
+ * @return `void`
+ */
+void removeComment(char *line)
+{
+    char *comment = strchr(line, '#');
+    if (comment != NULL) {
+        *comment = '\0';
+    }
+}
+
+/**
+ * @brief Reads a file using the given filename.
+ *
+ * @param filename The file to be read.
+ * @return `void`
+ */
+void readFile(char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error: `%s` not found.\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    char line[MAX_LINE];
+    while (fgets(line, sizeof(line), file)) {
+        printf("%s", line);
+    }
+    printf("\n");
+
+    fclose(file);
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc < 2) {
+    if (argc != 1) {
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
