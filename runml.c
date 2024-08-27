@@ -11,27 +11,56 @@
 #define MAX_LINE 100 // Maximum number of characters in a line
 
 /**
- * @brief Creates a file using the given filename.
+ * @brief Generates a filename using the process ID.
  *
  * Format: `ml-<<pid>>.c`
- * @param filename The file to be created.
+ * @param includeExtension Whether to include the extension or not.
+ * @return The generated filename.
+ */
+char *getFilename(int includeExtension)
+{
+    char *newFilename = malloc(12 * sizeof(char)); // ml-XXXXX.c
+    if (newFilename == NULL) {
+        perror("Unable to allocate memory");
+        exit(EXIT_FAILURE);
+    }
+
+    __pid_t pid = getpid();
+    char pidString[6];             // PID is 5 digits long
+    sprintf(pidString, "%d", pid); // Convert PID to string
+
+    strcpy(newFilename, "ml-");
+    strcat(newFilename, pidString);
+
+    if (includeExtension) {
+        strcat(newFilename, ".c");
+    }
+
+    return newFilename;
+}
+
+/**
+ * @brief Creates an exectuable C file.
+ *
+ * @param filename The contents of the file to be created.
+ * @param newFilename The new filename to be created.
  * @return `void`
  */
-void createFile(char *filename)
+void createFile(const char *filename, const char *newFilename)
 {
-    __pid_t pid = getpid();
-    char pidString[10];
-    sprintf(pidString, "%d", pid);
-
-    char newFilename[10] = "ml-";
-    strcat(newFilename, pidString);
-    strcat(newFilename, ".c");
-
     FILE *file = fopen(newFilename, "w");
     if (file == NULL) {
         fprintf(stderr, "Error: Unable to create file `%s`.\n", newFilename);
         exit(EXIT_FAILURE);
     }
+
+    // Temporary: create a simple Hello, World! program
+    fprintf(file,
+            "#include <stdio.h>\n\n"
+            "int main() {\n"
+            "    printf(\"Hello, World!\\n\");\n"
+            "    return 0;\n"
+            "}\n");
 
     fclose(file);
 }
@@ -41,17 +70,11 @@ void createFile(char *filename)
  *
  * Command: `cc -std=c11 -o <<filename>> <<filename>>.c`
  *
- * @param filename The file to be compiled
+ * @param filename The file to be compiled, accepts both with and without extension
  * @return `void`
  */
-void compile(char *filename)
+void compile(const char *filename)
 {
-    // Remove the extension from the filename
-    char *extension = strrchr(filename, '.');
-    if (extension != NULL) {
-        *extension = '\0';
-    }
-
     char command[100];
     sprintf(command, "cc -std=c11 -o %s %s.c", filename, filename);
     system(command);
@@ -92,7 +115,7 @@ void removeComment(char *line)
  * @param filename The file to be read.
  * @return `void`
  */
-void readFile(char *filename)
+void readFile(const char *filename)
 {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -115,6 +138,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
+
+    char *newFilenameWithExt = getFilename(1);
+    char *newFilenameWithoutExt = getFilename(0);
+
+    free(newFilenameWithExt);
+    free(newFilenameWithoutExt);
 
     exit(EXIT_SUCCESS);
 }
