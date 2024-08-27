@@ -9,6 +9,8 @@
 #include <unistd.h>
 
 #define MAX_LINE 100 // Maximum number of characters in a line
+#define INCLUDE_EXT 1 // Include the extension in the filename
+#define EXCLUDE_EXT 0 // Exclude the extension in the filename
 
 /**
  * @brief Generates a filename using the process ID.
@@ -70,7 +72,7 @@ void createFile(const char *filename, const char *newFilename)
  *
  * Command: `cc -std=c11 -o <<filename>> <<filename>>.c`
  *
- * @param filename The file to be compiled, accepts both with and without extension
+ * @param filename The file without an extension to be compiled
  * @return `void`
  */
 void compile(const char *filename)
@@ -139,8 +141,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    char *newFilenameWithExt = getFilename(1);
-    char *newFilenameWithoutExt = getFilename(0);
+    char *newFilenameWithExt = getFilename(INCLUDE_EXT);
+    char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
 
     free(newFilenameWithExt);
     free(newFilenameWithoutExt);
