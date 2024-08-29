@@ -12,17 +12,14 @@
 #define INCLUDE_EXT 1 // Include the extension in the filename
 #define EXCLUDE_EXT 0 // Exclude the extension in the filename
 
-/**
- * @brief A structure that defines a variable.
- */
+
+/** @brief A structure that defines a variable. */
 typedef struct variable {
     char *name;
     char *value;
 } Variable;
 
-/**
- * @brief An enum that defines all the command types.
- */
+/** @brief An enum that defines all the command types. */
 typedef enum commandType{
     ASSIGNMENT,
     PRINT,
@@ -31,9 +28,7 @@ typedef enum commandType{
     //RETURN
 } CommandType;
 
-/**
- * @brief A structure that defines a command.
- */
+/** @brief A structure that defines a command. */
 typedef struct command{
     CommandType type;
     Variable var;
