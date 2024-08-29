@@ -8,15 +8,42 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_LINE 100 // Maximum number of characters in a line
+#define MAX_LINE 100  // Maximum number of characters in a line
 #define INCLUDE_EXT 1 // Include the extension in the filename
 #define EXCLUDE_EXT 0 // Exclude the extension in the filename
+
+/**
+ * @brief A structure that defines a variable.
+ */
+typedef struct variable {
+    char *name;
+    char *value;
+} Variable;
+
+/**
+ * @brief An enum that defines all the command types.
+ */
+typedef enum commandType{
+    ASSIGNMENT,
+    PRINT,
+    //COMMENT,
+    //FUNCTION,
+    //RETURN
+} CommandType;
+
+/**
+ * @brief A structure that defines a command.
+ */
+typedef struct command{
+    CommandType type;
+    Variable var;
+} Command;
 
 /**
  * @brief Generates a filename using the process ID.
  *
  * Format: `ml-<<pid>>.c`
- * @param includeExtension Whether to include the extension or not.
+ * @param includeExtension `INCLUDE_EXT` to include the extension, `EXCLUDE_EXT` to exclude the extension.
  * @return The generated filename.
  */
 char *getFilename(int includeExtension)
@@ -44,8 +71,8 @@ char *getFilename(int includeExtension)
 /**
  * @brief Creates an exectuable C file.
  *
- * @param filename The contents of the file to be created.
- * @param newFilename The new filename to be created.
+ * @param filename The contents of the file to be created, including the extension.
+ * @param newFilename The new filename to be created, including the extension.
  * @return `void`
  */
 void createFile(const char *filename, const char *newFilename)
@@ -70,7 +97,7 @@ void createFile(const char *filename, const char *newFilename)
 /**
  * @brief Compiles a program using the given filename.
  *
- * Command: `cc -std=c11 -o <<filename>> <<filename>>.c`
+ * cmd: `cc -std=c11 -o <<filename>> <<filename>>.c`
  *
  * @param filename The file without an extension to be compiled
  * @return `void`
