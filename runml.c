@@ -5,13 +5,13 @@
 
 // Reference: DoctorWkt. 2019. acwj. https://github.com/DoctorWkt/acwj. (2024).
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define MAX_LINE 100  // Maximum number of characters in a line
+#define MAX_INPUT_LINES 1000 // Maximum number of lines in the input file
 #define INCLUDE_EXT 1 // Include the extension in the filename
 #define EXCLUDE_EXT 0 // Exclude the extension in the filename
 
@@ -105,9 +105,9 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
     for (int i = 0; i < commandCount; i++) {
         if (commands[i].type == ASSIGNMENT) {
-            fprintf(file, "    int %s = %f;\n", commands[i].var.name, commands[i].var.value);
+            fprintf(file, "    double %s = %f;\n", commands[i].var.name, commands[i].var.value);
         } else if (commands[i].type == PRINT) {
-            fprintf(file, "    printf(\"%%d\\n\", %s);\n", commands[i].var.name);
+            fprintf(file, "    printf(\"%%g\\n\", %s);\n", commands[i].var.name);
         }
     }
 
@@ -122,13 +122,13 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
  *
  * cmd: `cc -std=c11 -o <<filename>> <<filename>>.c`
  *
- * @param filename The file without an extension to be compiled
+ * @param filenameWithoutExt The file without an extension to be compiled
  * @return `void`
  */
-void compile(const char *filename)
+void compile(const char *filenameWithoutExt)
 {
     char command[100];
-    sprintf(command, "cc -std=c11 -o %s %s.c", filename, filename);
+    sprintf(command, "cc -std=c11 -o %s %s.c", filenameWithoutExt, filenameWithoutExt);
     int result = system(command);
 
     if (result != 0) {
@@ -145,10 +145,10 @@ void compile(const char *filename)
  * @param filename The file to be executed
  * @return `void`
  */
-void run(const char *filename)
+void run(const char *filenameWithoutExt)
 {
     char command[100];
-    sprintf(command, "./%s", filename);
+    sprintf(command, "./%s", filenameWithoutExt);
     int result = system(command);
 
     if (result != 0) {
@@ -190,11 +190,12 @@ void removeComment(char *line)
  * @brief Generates code from a given file.
  *
  * @param filename The file to be processed.
+ * @param newFilenameWithExt The new file to be created, including the extension.
  * @return `void`
  */
-void generateCode(const char *filename)
+void generateCode(const char *filename, const char *newFilenameWithExt)
 {
-    Command commands[1000];
+    Command commands[MAX_INPUT_LINES];
     int commandCount = 0;
 
     FILE *file = fopen(filename, "r");
@@ -214,13 +215,7 @@ void generateCode(const char *filename)
 
     fclose(file);
 
-    char *newFilenameWithExt = getFilename(INCLUDE_EXT);
-    char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
-
     createFile(newFilenameWithExt, commands, commandCount);
-
-    free(newFilenameWithExt);
-    free(newFilenameWithoutExt);
 }
 
 int main(int argc, char *argv[])
@@ -229,6 +224,22 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
+
+    char *newFilenameWithExt = getFilename(INCLUDE_EXT);
+    char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
+
+
+    // Sample of how the functions can be used
+    /*
+    generateCode("file.ml", newFilenameWithExt);
+    compile(newFilenameWithoutExt);
+    run(newFilenameWithoutExt);
+    removeFile(newFilenameWithoutExt);
+    removeFile(newFilenameWithExt); 
+    */
+
+    free(newFilenameWithExt);
+    free(newFilenameWithoutExt);
 
     exit(EXIT_SUCCESS);
 }
