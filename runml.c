@@ -15,24 +15,41 @@
 
 /** @brief A structure that defines a variable. */
 typedef struct variable {
-    char *name;
-    char *value;
+    char name[64];
+    double value;
 } Variable;
 
 /** @brief An enum that defines all the command types. */
-typedef enum commandType{
+typedef enum commandType {
     ASSIGNMENT,
     PRINT,
-    //COMMENT,
-    //FUNCTION,
-    //RETURN
+    // COMMENT,
+    // FUNCTION,
+    // RETURN
 } CommandType;
 
 /** @brief A structure that defines a command. */
-typedef struct command{
+typedef struct command {
     CommandType type;
     Variable var;
 } Command;
+
+Command parseAssignment(char *line)
+{
+    Command command;
+    command.type = ASSIGNMENT;
+    sscanf(line, "%s <- %le", command.var.name, &command.var.value);
+    
+    return command;
+}
+
+Command parsePrint(char *line)
+{
+    Command command;
+    command.type = PRINT;
+    sscanf(line, "print %s", command.var.name);
+    return command;
+}
 
 /**
  * @brief Generates a filename using the process ID.
@@ -66,25 +83,32 @@ char *getFilename(int includeExtension)
 /**
  * @brief Creates an exectuable C file.
  *
- * @param filename The contents of the file to be created, including the extension.
- * @param newFilename The new filename to be created, including the extension.
+ * @param newFilenameWithExt The new file to be created, including the extension.
+ * @param commands The commands to be written to the file.
+ * @param commandCount The number of commands to be written to the file.
  * @return `void`
  */
-void createFile(const char *filename, const char *newFilename)
+void createFile(const char *newFilenameWithExt, Command commands[], int commandCount)
 {
-    FILE *file = fopen(newFilename, "w");
+    FILE *file = fopen(newFilenameWithExt, "w");
     if (file == NULL) {
-        fprintf(stderr, "Error: Unable to create file `%s`.\n", newFilename);
+        fprintf(stderr, "Error: Unable to create file `%s`.\n", newFilenameWithExt);
         exit(EXIT_FAILURE);
     }
 
-    // Temporary: create a simple Hello, World! program
-    fprintf(file,
-            "#include <stdio.h>\n\n"
-            "int main() {\n"
-            "    printf(\"Hello, World!\\n\");\n"
-            "    return 0;\n"
-            "}\n");
+    fprintf(file, "#include <stdio.h>\n\n");
+    fprintf(file, "int main() {\n");
+
+    for (int i = 0; i < commandCount; i++) {
+        if (commands[i].type == ASSIGNMENT) {
+            fprintf(file, "    int %s = %f;\n", commands[i].var.name, commands[i].var.value);
+        } else if (commands[i].type == PRINT) {
+            fprintf(file, "    printf(\"%%d\\n\", %s);\n", commands[i].var.name);
+        }
+    }
+
+    fprintf(file, "    return 0;\n");
+    fprintf(file, "}\n");
 
     fclose(file);
 }
@@ -101,7 +125,32 @@ void compile(const char *filename)
 {
     char command[100];
     sprintf(command, "cc -std=c11 -o %s %s.c", filename, filename);
-    system(command);
+    int result = system(command);
+    
+    if(result != 0) {
+        fprintf(stderr, "!Error: Compilation failed.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+/**
+ * @brief Runs a program using the given filename.
+ *
+ * cmd: `./<<filename>>`
+ *
+ * @param filename The file to be executed
+ * @return `void`
+ */
+void run(const char *filename)
+{
+    char command[100];
+    sprintf(command, "./%s", filename);
+    int result = system(command);
+
+    if(result != 0) {
+        fprintf(stderr, "!Error: Execution failed.\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 /**
@@ -156,18 +205,37 @@ void readFile(const char *filename)
     fclose(file);
 }
 
+void generateCode(const char *input)
+{
+    Command commands[1000];
+    int commandCount = 0;
+
+    char *line = strtok((char *)input, "\n"); // Causing segfault: Input is not being broken into separate lines.
+    while (line != NULL) {
+        if (strstr(line, "<-") != NULL) {
+            commands[commandCount++] = parseAssignment(line);
+        } else if (strstr(line, "print") != NULL) {
+            commands[commandCount++] = parsePrint(line);
+        }
+
+        line = strtok(NULL, "\n");
+    }
+
+    char *newFilenameWithExt = getFilename(INCLUDE_EXT);
+    char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
+
+    createFile(newFilenameWithExt, commands, commandCount);
+
+    free(newFilenameWithExt);
+    free(newFilenameWithoutExt);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc != 1) {
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
-
-    char *newFilenameWithExt = getFilename(INCLUDE_EXT);
-    char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
-
-    free(newFilenameWithExt);
-    free(newFilenameWithoutExt);
 
     exit(EXIT_SUCCESS);
 }
