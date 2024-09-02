@@ -1,7 +1,10 @@
 //  CITS2002 Project 1 2024
 //  Student1:   23097928   Harsh Chaudhari
 //  Student2:   23087371   Jayden Hondris
-//  Platform:   Linux
+//  Platform:   Linux (Ubuntu 22.04.4 LTS)
+
+// Reference: DoctorWkt. 2019. acwj. https://github.com/DoctorWkt/acwj. (2024).
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,15 +16,13 @@
 #define EXCLUDE_EXT 0 // Exclude the extension in the filename
 
 /** @brief A structure that defines a variable. */
-typedef struct variable
-{
+typedef struct variable {
     char name[64];
     double value;
 } Variable;
 
 /** @brief An enum that defines all the command types. */
-typedef enum commandType
-{
+typedef enum commandType {
     ASSIGNMENT,
     PRINT,
     // COMMENT,
@@ -30,8 +31,7 @@ typedef enum commandType
 } CommandType;
 
 /** @brief A structure that defines a command. */
-typedef struct command
-{
+typedef struct command {
     CommandType type;
     Variable var;
 } Command;
@@ -63,21 +63,21 @@ Command parsePrint(char *line)
 char *getFilename(int includeExtension)
 {
     char *newFilename = malloc(12 * sizeof(char)); // ml-XXXXX.c
-    if (newFilename == NULL)
-    {
+    if (newFilename == NULL) {
         perror("Unable to allocate memory");
         exit(EXIT_FAILURE);
     }
 
-    pid_t pid = getpid();
+    // pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
+    __pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
+
     char pidString[6];             // PID is 5 digits long
     sprintf(pidString, "%d", pid); // Convert PID to string
 
     strcpy(newFilename, "ml-");
     strcat(newFilename, pidString);
 
-    if (includeExtension)
-    {
+    if (includeExtension) {
         strcat(newFilename, ".c");
     }
 
@@ -95,8 +95,7 @@ char *getFilename(int includeExtension)
 void createFile(const char *newFilenameWithExt, Command commands[], int commandCount)
 {
     FILE *file = fopen(newFilenameWithExt, "w");
-    if (file == NULL)
-    {
+    if (file == NULL) {
         fprintf(stderr, "Error: Unable to create file `%s`.\n", newFilenameWithExt);
         exit(EXIT_FAILURE);
     }
@@ -104,14 +103,10 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     fprintf(file, "#include <stdio.h>\n\n");
     fprintf(file, "int main() {\n");
 
-    for (int i = 0; i < commandCount; i++)
-    {
-        if (commands[i].type == ASSIGNMENT)
-        {
+    for (int i = 0; i < commandCount; i++) {
+        if (commands[i].type == ASSIGNMENT) {
             fprintf(file, "    int %s = %f;\n", commands[i].var.name, commands[i].var.value);
-        }
-        else if (commands[i].type == PRINT)
-        {
+        } else if (commands[i].type == PRINT) {
             fprintf(file, "    printf(\"%%d\\n\", %s);\n", commands[i].var.name);
         }
     }
@@ -136,8 +131,7 @@ void compile(const char *filename)
     sprintf(command, "cc -std=c11 -o %s %s.c", filename, filename);
     int result = system(command);
 
-    if (result != 0)
-    {
+    if (result != 0) {
         fprintf(stderr, "!Error: Compilation failed.\n");
         exit(EXIT_FAILURE);
     }
@@ -157,8 +151,7 @@ void run(const char *filename)
     sprintf(command, "./%s", filename);
     int result = system(command);
 
-    if (result != 0)
-    {
+    if (result != 0) {
         fprintf(stderr, "!Error: Execution failed.\n");
         exit(EXIT_FAILURE);
     }
@@ -188,8 +181,7 @@ void removeFile(char *filename)
 void removeComment(char *line)
 {
     char *comment = strchr(line, '#');
-    if (comment != NULL)
-    {
+    if (comment != NULL) {
         *comment = '\0';
     }
 }
@@ -206,21 +198,16 @@ void generateCode(const char *filename)
     int commandCount = 0;
 
     FILE *file = fopen(filename, "r");
-    if (file == NULL)
-    {
+    if (file == NULL) {
         fprintf(stderr, "Error: `%s` not found.\n", filename);
         exit(EXIT_FAILURE);
     }
 
     char line[MAX_LINE];
-    while (fgets(line, sizeof(line), file))
-    {
-        if (strstr(line, "<-") != NULL)
-        {
+    while (fgets(line, sizeof(line), file)) {
+        if (strstr(line, "<-") != NULL) {
             commands[commandCount++] = parseAssignment(line);
-        }
-        else if (strstr(line, "print") != NULL)
-        {
+        } else if (strstr(line, "print") != NULL) {
             commands[commandCount++] = parsePrint(line);
         }
     }
@@ -238,13 +225,10 @@ void generateCode(const char *filename)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 1)
-    {
+    if (argc != 1) {
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
-
-    generateCode("test.ml");
 
     exit(EXIT_SUCCESS);
 }
