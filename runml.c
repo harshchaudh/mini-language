@@ -142,7 +142,7 @@ void compile(const char *filenameWithoutExt)
  *
  * cmd: `./<<filename>>`
  *
- * @param filename The file to be executed
+ * @param filenameWithoutExt The file to be executed
  * @return `void`
  */
 void run(const char *filenameWithoutExt)
@@ -220,7 +220,7 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 1) {
+    if (argc != 2) {
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
@@ -228,10 +228,9 @@ int main(int argc, char *argv[])
     char *newFilenameWithExt = getFilename(INCLUDE_EXT);
     char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
 
-
     // Sample of how the functions can be used
     /*
-    generateCode("file.ml", newFilenameWithExt);
+    generateCode(argv[1], newFilenameWithExt);
     compile(newFilenameWithoutExt);
     run(newFilenameWithoutExt);
     removeFile(newFilenameWithoutExt);
