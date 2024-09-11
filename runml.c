@@ -64,7 +64,7 @@ Command parsePrint(char *line)
 {
     Command command;
     command.type = PRINT;
-    sscanf(line, "print %s", command.var.name);
+    sscanf(line, "print  %[^\n]", command.var.name);
     return command;
 }
 
@@ -136,7 +136,6 @@ Command parseFunctionCall(char *line, Command command)
     int i = 0;
 
     while (arg != NULL && i < command.func.argCount) {
-        printf("Arg: %s\n", arg);
         command.func.args[i].value = atof(arg);
         arg = strtok(NULL, " ");
         i++;
