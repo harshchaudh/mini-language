@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define MAX_LINE 100  // Maximum number of characters in a line
 #define MAX_INPUT_LINES 1000 // Maximum number of lines in the input file
@@ -34,24 +35,50 @@ typedef enum commandType {
 typedef struct command {
     CommandType type;
     Variable var;
+    char expression[256];
 } Command;
 
 Command parseAssignment(char *line)
 {
     Command command;
     command.type = ASSIGNMENT;
-    sscanf(line, "%s <- %le", command.var.name, &command.var.value);
+
+    // Split the string on "<-"
+    char *var_name = strtok(line, " <-");
+    char *var_value_str = strtok(NULL, " <-");
+
+    if (var_name == NULL || var_value_str == NULL) {
+        fprintf(stderr, "Error: Invalid assignment format in line: %s\n", line);
+        exit(EXIT_FAILURE);
+    }
+
+    // Copy the variable name and parse the value
+    strncpy(command.var.name, var_name, 63);
+    command.var.name[63] = '\0'; // Ensure null termination
+
+    command.var.value = atof(var_value_str); // Convert string to double
+
+    printf("@ Assignment Variable name: %s, Value: %lf\n", command.var.name, command.var.value);
+
 
     return command;
 }
 
-Command parsePrint(char *line)
-{
+Command parsePrint(char *line) {
     Command command;
     command.type = PRINT;
-    sscanf(line, "print %s", command.var.name);
+
+    // Extract everything after "print"
+    sscanf(line, "print %[^\n]", command.expression);
+
+    command.var.name[0] = '\0'; // Clear out the variable name
+    command.var.value = 0; // Set value to a neutral state, though it's irrelevant
+
+    printf("@ Parsed Expression: %s\n", command.expression);
+
     return command;
 }
+
 
 /**
  * @brief Generates a filename using the process ID.
@@ -68,7 +95,7 @@ char *getFilename(int includeExtension)
         exit(EXIT_FAILURE);
     }
 
-    // pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
+    //pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
     __pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
 
     char pidString[6];             // PID is 5 digits long
@@ -104,18 +131,32 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     fprintf(file, "int main() {\n");
 
     for (int i = 0; i < commandCount; i++) {
-        if (commands[i].type == ASSIGNMENT) {
-            fprintf(file, "    double %s = %f;\n", commands[i].var.name, commands[i].var.value);
-        } else if (commands[i].type == PRINT) {
-            fprintf(file, "    printf(\"%%g\\n\", %s);\n", commands[i].var.name);
+        // Print command information
+        printf("@ Command type: %d, Variable name: %s, Value: %f\n", commands[i].type, commands[i].var.name, commands[i].var.value);
+
+        // Handle each command type
+        switch (commands[i].type) {
+            case ASSIGNMENT:
+                fprintf(file, "    double %s = %f;\n", commands[i].var.name, commands[i].var.value);
+                break;
+
+            case PRINT:
+                fprintf(file, "    printf(\"%%g\\n\", %s);\n", commands[i].expression);
+                break;
+
+            default:
+                fprintf(stderr, "Error: Unknown command type %d.\n", commands[i].type);
+                exit(EXIT_FAILURE);
         }
     }
+
 
     fprintf(file, "    return 0;\n");
     fprintf(file, "}\n");
 
     fclose(file);
 }
+
 
 /**
  * @brief Compiles a program using the given filename.
@@ -206,8 +247,14 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
+        // Remove the trailing newline character if present
+        line[strcspn(line, "\r\n")] = '\0';  // Replace the newline with a null terminator
+
+        printf("@ Line: %s\n", line);  // Print the processed line
         if (strstr(line, "<-") != NULL) {
             commands[commandCount++] = parseAssignment(line);
+        } else if (line[0]=='#'){
+            printf("@Skip comment line.\n");
         } else if (strstr(line, "print") != NULL) {
             commands[commandCount++] = parsePrint(line);
         }
@@ -228,15 +275,13 @@ int main(int argc, char *argv[])
     char *newFilenameWithExt = getFilename(INCLUDE_EXT);
     char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
 
-    // Sample of how the functions can be used
-    /*
+    
     generateCode(argv[1], newFilenameWithExt);
     compile(newFilenameWithoutExt);
     run(newFilenameWithoutExt);
     removeFile(newFilenameWithoutExt);
     removeFile(newFilenameWithExt); 
-    */
-
+    
     free(newFilenameWithExt);
     free(newFilenameWithoutExt);
 
