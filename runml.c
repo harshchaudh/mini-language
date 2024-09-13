@@ -227,6 +227,7 @@ void removeComment(char *line)
     char *comment = strchr(line, '#');
     if (comment != NULL) {
         *comment = '\0';
+        printf("@ Comment removed: %s\n", line);
     }
 }
 
