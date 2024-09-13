@@ -5,7 +5,6 @@
 
 // Reference: DoctorWkt. 2019. acwj. https://github.com/DoctorWkt/acwj. (2024).
 
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -226,8 +225,8 @@ void removeComment(char *line)
 {
     char *comment = strchr(line, '#');
     if (comment != NULL) {
+        printf("@ Comment removed in line: %s\n", line);
         *comment = '\0';
-        printf("@ Comment removed: %s\n", line);
     }
 }
 
