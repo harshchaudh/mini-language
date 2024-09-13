@@ -1,4 +1,6 @@
 *
+
+!samples/**
 !.gitignore
 !runml.c
 !LICENSE

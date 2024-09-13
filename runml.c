@@ -5,16 +5,16 @@
 
 // Reference: DoctorWkt. 2019. acwj. https://github.com/DoctorWkt/acwj. (2024).
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ctype.h>
 
-#define MAX_LINE 100  // Maximum number of characters in a line
+#define MAX_LINE 100         // Maximum number of characters in a line
 #define MAX_INPUT_LINES 1000 // Maximum number of lines in the input file
-#define INCLUDE_EXT 1 // Include the extension in the filename
-#define EXCLUDE_EXT 0 // Exclude the extension in the filename
+#define INCLUDE_EXT 1        // Include the extension in the filename
+#define EXCLUDE_EXT 0        // Exclude the extension in the filename
 
 /** @brief A structure that defines a variable. */
 typedef struct variable {
@@ -22,93 +22,55 @@ typedef struct variable {
     double value;
 } Variable;
 
+typedef struct expression {
+    char expression[256];
+} Expression;
+
 /** @brief An enum that defines all the command types. */
 typedef enum commandType {
     ASSIGNMENT,
     PRINT,
-    // COMMENT,
-    // FUNCTION,
-    // RETURN
 } CommandType;
 
 /** @brief A structure that defines a command. */
 typedef struct command {
     CommandType type;
     Variable var;
-    char expression[256];
+    Expression exp;
 } Command;
 
+/**
+ * @brief Parses an assignment command.
+ *
+ * @param line The line to be processed.
+ * @return The parsed command.
+ */
 Command parseAssignment(char *line)
 {
     Command command;
     command.type = ASSIGNMENT;
-
-    // Split the string on "<-"
-    char *var_name = strtok(line, " <-");
-    char *var_value_str = strtok(NULL, " <-");
-
-    if (var_name == NULL || var_value_str == NULL) {
-        fprintf(stderr, "Error: Invalid assignment format in line: %s\n", line);
-        exit(EXIT_FAILURE);
-    }
-
-    // Copy the variable name and parse the value
-    strncpy(command.var.name, var_name, 63);
-    command.var.name[63] = '\0'; // Ensure null termination
-
-    command.var.value = atof(var_value_str); // Convert string to double
+    sscanf(line, "%s <- %le", command.var.name, &command.var.value);
 
     printf("@ Assignment Variable name: %s, Value: %lf\n", command.var.name, command.var.value);
 
-
     return command;
 }
-
-Command parsePrint(char *line) {
+/**
+ * @brief Parses a print command.
+ *
+ * @param line The line to be processed.
+ * @return The parsed command.
+ */
+Command parsePrint(char *line)
+{
     Command command;
     command.type = PRINT;
 
-    // Extract everything after "print"
-    sscanf(line, "print %[^\n]", command.expression);
+    sscanf(line, "print %[^\n]", command.exp.expression);
 
-    command.var.name[0] = '\0'; // Clear out the variable name
-    command.var.value = 0; // Set value to a neutral state, though it's irrelevant
-
-    printf("@ Parsed Expression: %s\n", command.expression);
+    printf("@ Parsed Expression: %s\n", command.exp.expression);
 
     return command;
-}
-
-
-/**
- * @brief Generates a filename using the process ID.
- *
- * Format: `ml-<<pid>>.c`
- * @param includeExtension `INCLUDE_EXT` to include the extension, `EXCLUDE_EXT` to exclude the extension.
- * @return The generated filename.
- */
-char *getFilename(int includeExtension)
-{
-    char *newFilename = malloc(12 * sizeof(char)); // ml-XXXXX.c
-    if (newFilename == NULL) {
-        perror("Unable to allocate memory");
-        exit(EXIT_FAILURE);
-    }
-
-    //pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
-    __pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
-
-    char pidString[6];             // PID is 5 digits long
-    sprintf(pidString, "%d", pid); // Convert PID to string
-
-    strcpy(newFilename, "ml-");
-    strcat(newFilename, pidString);
-
-    if (includeExtension) {
-        strcat(newFilename, ".c");
-    }
-
-    return newFilename;
 }
 
 /**
@@ -131,32 +93,73 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     fprintf(file, "int main() {\n");
 
     for (int i = 0; i < commandCount; i++) {
-        // Print command information
+
         printf("@ Command type: %d, Variable name: %s, Value: %f\n", commands[i].type, commands[i].var.name, commands[i].var.value);
 
-        // Handle each command type
         switch (commands[i].type) {
-            case ASSIGNMENT:
-                fprintf(file, "    double %s = %f;\n", commands[i].var.name, commands[i].var.value);
-                break;
+        case ASSIGNMENT:
+            fprintf(file, "\tdouble %s = %f;\n", commands[i].var.name, commands[i].var.value);
+            break;
 
-            case PRINT:
-                fprintf(file, "    printf(\"%%g\\n\", %s);\n", commands[i].expression);
-                break;
+        case PRINT:
+            fprintf(file, "\tprintf(\"%%g\\n\", %s);\n", commands[i].exp.expression);
+            break;
 
-            default:
-                fprintf(stderr, "Error: Unknown command type %d.\n", commands[i].type);
-                exit(EXIT_FAILURE);
+        default:
+            fprintf(stderr, "!Error: Unknown command type %d.\n", commands[i].type);
+            exit(EXIT_FAILURE);
         }
     }
 
-
-    fprintf(file, "    return 0;\n");
-    fprintf(file, "}\n");
+    fprintf(file, "\treturn 0;\n}\n");
 
     fclose(file);
 }
 
+/**
+ * @brief Removes all files with the prefix `ml-`.
+ *
+ * Command: `rm ml-*`
+ * @param `void`
+ * @return `void`
+ */
+void DEV_TOOL_REMOVE_ML(void)
+{
+    char command[100];
+    sprintf(command, "rm ml-*");
+    system(command);
+}
+
+/**
+ * @brief Generates a filename using the process ID.
+ *
+ * Format: `ml-<<pid>>.c`
+ * @param includeExtension `INCLUDE_EXT` to include the extension, `EXCLUDE_EXT` to exclude the extension.
+ * @return The generated filename.
+ */
+char *createFilename(int includeExtension)
+{
+    char *newFilename = malloc(12 * sizeof(char)); // ml-XXXXX.c
+    if (newFilename == NULL) {
+        perror("Unable to allocate memory");
+        exit(EXIT_FAILURE);
+    }
+
+    // pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
+    __pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
+
+    char pidString[6];             // PID is 5 digits long
+    sprintf(pidString, "%d", pid); // Convert PID to string
+
+    strcpy(newFilename, "ml-");
+    strcat(newFilename, pidString);
+
+    if (includeExtension) {
+        strcat(newFilename, ".c");
+    }
+
+    return newFilename;
+}
 
 /**
  * @brief Compiles a program using the given filename.
@@ -247,14 +250,12 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
-        // Remove the trailing newline character if present
-        line[strcspn(line, "\r\n")] = '\0';  // Replace the newline with a null terminator
 
-        printf("@ Line: %s\n", line);  // Print the processed line
+        printf("@ Line: %s\n", line);
+        removeComment(line);
+
         if (strstr(line, "<-") != NULL) {
             commands[commandCount++] = parseAssignment(line);
-        } else if (line[0]=='#'){
-            printf("@Skip comment line.\n");
         } else if (strstr(line, "print") != NULL) {
             commands[commandCount++] = parsePrint(line);
         }
@@ -268,20 +269,21 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
-        fprintf(stderr, "Error: Incorrect number of arguments.\n");
+        fprintf(stderr, "!Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
 
-    char *newFilenameWithExt = getFilename(INCLUDE_EXT);
-    char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
+    char *newFilenameWithExt = createFilename(INCLUDE_EXT);
+    char *newFilenameWithoutExt = createFilename(EXCLUDE_EXT);
 
-    
+    DEV_TOOL_REMOVE_ML();
+
     generateCode(argv[1], newFilenameWithExt);
     compile(newFilenameWithoutExt);
     run(newFilenameWithoutExt);
-    removeFile(newFilenameWithoutExt);
-    removeFile(newFilenameWithExt); 
-    
+    // removeFile(newFilenameWithoutExt);
+    // removeFile(newFilenameWithExt);
+
     free(newFilenameWithExt);
     free(newFilenameWithoutExt);
 
