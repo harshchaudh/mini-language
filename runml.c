@@ -160,8 +160,8 @@ char *getFilename(int includeExtension)
         exit(EXIT_FAILURE);
     }
 
-    pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
-    //__pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
+    //pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
+    __pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
 
     char pidString[6];             // PID is 5 digits long
     sprintf(pidString, "%d", pid); // Convert PID to string
@@ -400,7 +400,7 @@ void DEV_TOOL_REMOVE_ML(void)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 1)
+    if (argc != 2)
     {
         fprintf(stderr, "Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
@@ -411,13 +411,11 @@ int main(int argc, char *argv[])
 
     DEV_TOOL_REMOVE_ML();
 
-    generateCode("test.ml", newFilenameWithExt);
-
-    // Sample of how the functions can be used
-    /*
     generateCode(argv[1], newFilenameWithExt);
     compile(newFilenameWithoutExt);
+    
     run(newFilenameWithoutExt);
+    /*
     removeFile(newFilenameWithoutExt);
     removeFile(newFilenameWithExt);
     */
