@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define MAX_LINE 100         // Maximum number of characters in a line
 #define MAX_INPUT_LINES 1000 // Maximum number of lines in the input file
@@ -31,6 +32,12 @@ typedef struct function {
     int voidStatus;
 } Function;
 
+
+typedef struct expression {
+    char expression[256];
+} Expression;
+
+
 /** @brief An enum that defines all the command types. */
 typedef enum commandType {
     ASSIGNMENT,
@@ -45,24 +52,22 @@ typedef struct command {
     CommandType type;
     Function func;
     Variable var;
+    Expression exp;
 } Command;
 
+/**
+ * @brief Parses an assignment command.
+ *
+ * @param line The line to be processed.
+ * @return The parsed command.
+ */
 Command parseAssignment(char *line)
 {
     Command command;
     command.type = ASSIGNMENT;
     sscanf(line, "%s <- %le", command.var.name, &command.var.value);
 
-    return command;
-}
-
-Command parsePrint(char *line)
-{
-    Command command;
-    command.type = PRINT;
-    sscanf(line, "print  %[^\n]", command.var.name);
-    return command;
-}
+    printf("@ Assignment Variable name: %s, Value: %lf\n", command.var.name, command.var.value);
 
 Command parseFunctionDefine(char *line)
 {
@@ -132,39 +137,28 @@ Command parseFunctionCall(char *line, Command command)
         arg = strtok(NULL, " ");
         i++;
     }
-
+  
     return command;
 }
-
 /**
- * @brief Generates a filename using the process ID.
+ * @brief Parses a print command.
  *
- * Format: `ml-<<pid>>.c`
- * @param includeExtension `INCLUDE_EXT` to include the extension, `EXCLUDE_EXT` to exclude the extension.
- * @return The generated filename.
+ * @param line The line to be processed.
+ * @return The parsed command.
  */
-char *getFilename(int includeExtension)
+Command parsePrint(char *line)
 {
-    char *newFilename = malloc(12 * sizeof(char)); // ml-XXXXX.c
-    if (newFilename == NULL) {
-        perror("Unable to allocate memory");
-        exit(EXIT_FAILURE);
-    }
+    Command command;
+    command.type = PRINT;
+    command.var.value = 0;
+    strcpy(command.var.name ,"\0");
 
-    // pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
-    __pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
+    sscanf(line, "print %[^\n]", command.exp.expression);
 
-    char pidString[6];             // PID is 5 digits long
-    sprintf(pidString, "%d", pid); // Convert PID to string
+    printf("@ Parsed Expression: %s\n", command.exp.expression);
 
-    strcpy(newFilename, "ml-");
-    strcat(newFilename, pidString);
 
-    if (includeExtension) {
-        strcat(newFilename, ".c");
-    }
-
-    return newFilename;
+    return command;
 }
 
 /**
@@ -179,7 +173,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 {
     FILE *file = fopen(newFilenameWithExt, "w");
     if (file == NULL) {
-        fprintf(stderr, "Error: Unable to create file `%s`.\n", newFilenameWithExt);
+        fprintf(stderr, "!Error: Unable to create file `%s`.\n", newFilenameWithExt);
         exit(EXIT_FAILURE);
     }
 
@@ -204,30 +198,70 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
     fprintf(file, "int main() \n{\n");
     for (int i = 0; i < commandCount; i++) {
-        if (commands[i].type == ASSIGNMENT) {
+        switch (commands[i].type) {
+        case ASSIGNMENT:
+            printf("@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n", commands[i].type,commands[i].var.name, commands[i].var.value);
             fprintf(file, "\tdouble %s = %f;\n", commands[i].var.name, commands[i].var.value);
-        } else if (commands[i].type == PRINT) {
-            fprintf(file, "\tprintf(\"%%g\\n\", %s);\n", commands[i].var.name);
-        } else if (commands[i].type == FUNCTION_CALL) {
+            break;
 
-            fprintf(file, "\t%s(", commands[i].func.name);
-            if (commands[i].func.argCount > 0) {
-                for (int j = 0; j < commands[i].func.argCount; j++) {
-                    fprintf(file, "%g", commands[i].func.args[j].value);
-                    if (j < commands[i].func.argCount - 1) {
-                        fprintf(file, ", ");
-                    }
-                }
-            }
+        case PRINT:
+            printf("@ Command type: PRINT(%d), Expression: %s\n",commands[i].type, commands[i].exp.expression);
+            fprintf(file, "\tprintf(\"%%g\\n\", %s);\n", commands[i].exp.expression);
+            break;
 
-            fprintf(file, ");\n");
+        default:
+            fprintf(stderr, "!Error: Unknown command type %d.\n", commands[i].type);
+            exit(EXIT_FAILURE);
         }
     }
 
-    fprintf(file, "\treturn 0;\n");
-    fprintf(file, "}\n");
-
+    fprintf(file, "\treturn 0;\n}\n");
     fclose(file);
+}
+
+/**
+ * @brief Removes all files with the prefix `ml-`.
+ *
+ * Command: `rm ml-*`
+ * @param `void`
+ * @return `void`
+ */
+void DEV_TOOL_REMOVE_ML(void)
+{
+    char command[100];
+    sprintf(command, "rm ml-*");
+    system(command);
+}
+
+/**
+ * @brief Generates a filename using the process ID.
+ *
+ * Format: `ml-<<pid>>.c`
+ * @param includeExtension `INCLUDE_EXT` to include the extension, `EXCLUDE_EXT` to exclude the extension.
+ * @return The generated filename.
+ */
+char *createFilename(int includeExtension)
+{
+    char *newFilename = malloc(12 * sizeof(char)); // ml-XXXXX.c
+    if (newFilename == NULL) {
+        perror("Unable to allocate memory");
+        exit(EXIT_FAILURE);
+    }
+
+    // pid_t pid = getpid(); // Get the process ID (Apple, MacOS)
+    __pid_t pid = getpid(); // Get the process ID (Linux, Ubuntu)
+
+    char pidString[6];             // PID is 5 digits long
+    sprintf(pidString, "%d", pid); // Convert PID to string
+
+    strcpy(newFilename, "ml-");
+    strcat(newFilename, pidString);
+
+    if (includeExtension) {
+        strcat(newFilename, ".c");
+    }
+
+    return newFilename;
 }
 
 /**
@@ -295,9 +329,48 @@ void removeComment(char *line)
 {
     char *comment = strchr(line, '#');
     if (comment != NULL) {
+        
         *comment = '\0';
+        printf("@ Comment removed in line\n");
     }
 }
+
+// Checks a line for any errors
+void validateSyntax(char *line) {
+    // Check if line is an assignment
+    if (strstr(line, "<-") != NULL) {
+        // Validate the structure of the assignment
+        char identifier[64];
+        double value;
+        if (sscanf(line, "%63s <- %lf", identifier, &value) != 2) {
+            fprintf(stderr, "!Error: Invalid assignment\n");
+        }
+    } 
+    else if (strstr(line, "print") != NULL) {
+        // Ensure it matches the "print expression" format
+        char expression[256];
+        if (sscanf(line, "print %[^\n]", expression) != 1) {
+            fprintf(stderr, "!Error: Invalid print statement\n");
+        } else {
+            for (char *p = expression; *p != '\0'; p++) {
+                if (!isalnum(*p) && !strchr(" +-*/().", *p)) {
+                    fprintf(stderr, "!Error: Invalid character in expression\n");
+                    break;
+                }
+            }
+        }
+    }
+
+    // skip empty lines
+    else if (line[0] == '\0') {
+        return;
+    } 
+    // To be continued to work on function and their body
+    else {
+        fprintf(stderr, "!Error: Unrecognized statement\n");
+    }
+}
+
 
 /**
  * @brief Generates code from a given file.
@@ -317,14 +390,18 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        fprintf(stderr, "Error: `%s` not found.\n", filename);
+        fprintf(stderr, "!Error: `%s` not found.\n", filename);
         exit(EXIT_FAILURE);
     }
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
+        // Remove trailing newline characters (both \r and \n)
+        line[strcspn(line, "\r\n")] = '\0';
 
+        printf("@ Got Line: %s\n", line);
         removeComment(line);
+        validateSyntax(line);
 
         if (strstr(line, "<-") != NULL) {
             commands[commandCount++] = parseAssignment(line);
@@ -340,6 +417,7 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
             int functionIndex = getFunctionIndex(line, commandFunctions, functionCount);
             commands[commandCount++] = parseFunctionCall(line, commandFunctions[functionIndex]);
         }
+
     }
 
     fclose(file);
@@ -361,26 +439,25 @@ void DEV_TOOL_REMOVE_ML(void)
     system(command);
 }
 
+
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
-        fprintf(stderr, "Error: Incorrect number of arguments.\n");
+        fprintf(stderr, "!Error: Incorrect number of arguments.\n");
         exit(EXIT_FAILURE);
     }
 
-    char *newFilenameWithExt = getFilename(INCLUDE_EXT);
-    char *newFilenameWithoutExt = getFilename(EXCLUDE_EXT);
+    char *newFilenameWithExt = createFilename(INCLUDE_EXT);
+    char *newFilenameWithoutExt = createFilename(EXCLUDE_EXT);
 
     DEV_TOOL_REMOVE_ML();
 
     generateCode(argv[1], newFilenameWithExt);
     compile(newFilenameWithoutExt);
-
     run(newFilenameWithoutExt);
-    /*
-    removeFile(newFilenameWithoutExt);
-    removeFile(newFilenameWithExt);
-    */
+
+    // removeFile(newFilenameWithoutExt);
+    // removeFile(newFilenameWithExt);
 
     free(newFilenameWithExt);
     free(newFilenameWithoutExt);
