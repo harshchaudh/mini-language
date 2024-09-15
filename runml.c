@@ -87,7 +87,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 {
     FILE *file = fopen(newFilenameWithExt, "w");
     if (file == NULL) {
-        fprintf(stderr, "Error: Unable to create file `%s`.\n", newFilenameWithExt);
+        fprintf(stderr, "!Error: Unable to create file `%s`.\n", newFilenameWithExt);
         exit(EXIT_FAILURE);
     }
 
@@ -100,12 +100,12 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
         switch (commands[i].type) {
         case ASSIGNMENT:
-            printf("@ Command type: ASSIGNMENT, Variable name: %s, Value: %f\n", commands[i].var.name, commands[i].var.value);
+            printf("@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n", commands[i].type,commands[i].var.name, commands[i].var.value);
             fprintf(file, "\tdouble %s = %f;\n", commands[i].var.name, commands[i].var.value);
             break;
 
         case PRINT:
-            printf("@ Command type: PRINT, Expression: %s\n", commands[i].exp.expression);
+            printf("@ Command type: PRINT(%d), Expression: %s\n",commands[i].type, commands[i].exp.expression);
             fprintf(file, "\tprintf(\"%%g\\n\", %s);\n", commands[i].exp.expression);
             break;
 
@@ -236,6 +236,36 @@ void removeComment(char *line)
     }
 }
 
+// Checks a line for any errors
+void validateSyntax(char *line) {
+    // Check if line is an assignment
+    if (strstr(line, "<-") != NULL) {
+        // Validate the structure of the assignment
+        char identifier[64];
+        double value;
+        if (sscanf(line, "%63s <- %lf", identifier, &value) != 2) {
+            fprintf(stderr, "!Error: Invalid assignment\n");
+        }
+    } 
+    // Check if line is a print statement
+    else if (strstr(line, "print") != NULL) {
+        // Ensure it matches the "print expression" format
+        char expression[256];
+        if (sscanf(line, "print %[^\n]", expression) != 1) {
+            fprintf(stderr, "!Error: Invalid print statement\n");
+        }
+    } 
+    // skip empty lines
+    else if (line[0] == '\0') {
+        return;
+    } 
+    // To be continued to work on function and their body
+    else {
+        fprintf(stderr, "!Error: Unrecognized statement\n");
+    }
+}
+
+
 /**
  * @brief Generates code from a given file.
  *
@@ -247,6 +277,7 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 {
     Command commands[MAX_INPUT_LINES];
     int commandCount = 0;
+    //int lineNum =1;
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -261,18 +292,21 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
         printf("@ Got Line: %s\n", line);
         removeComment(line);
+        validateSyntax(line);
 
         if (strstr(line, "<-") != NULL) {
             commands[commandCount++] = parseAssignment(line);
         } else if (strstr(line, "print") != NULL) {
             commands[commandCount++] = parsePrint(line);
         }
+
     }
 
     fclose(file);
 
     createFile(newFilenameWithExt, commands, commandCount);
 }
+
 
 int main(int argc, char *argv[])
 {
