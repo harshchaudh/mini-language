@@ -11,11 +11,12 @@
 #include <unistd.h>
 #include <ctype.h>
 
-#define MAX_LINE 100         // Maximum number of characters in a line
-#define MAX_INPUT_LINES 1000 // Maximum number of lines in the input file
-#define IDENTIFIER_LENGTH 64 // Maximum length of an identifier
-#define INCLUDE_EXT 1        // Include the extension in the filename
-#define EXCLUDE_EXT 0        // Exclude the extension in the filename
+#define MAX_LINE 100            // Maximum number of characters in a line
+#define MAX_INPUT_LINES 1000    // Maximum number of lines in the input file
+#define IDENTIFIER_LENGTH 64    // Maximum length of an identifier
+#define EXPRESSION_LENGTH 256   // Maximum length of an expression
+#define INCLUDE_EXT 1           // Include the extension in the filename
+#define EXCLUDE_EXT 0           // Exclude the extension in the filename
 
 /** @brief A structure that defines a variable. */
 typedef struct variable {
@@ -68,6 +69,9 @@ Command parseAssignment(char *line)
     sscanf(line, "%s <- %le", command.var.name, &command.var.value);
 
     printf("@ Assignment Variable name: %s, Value: %lf\n", command.var.name, command.var.value);
+
+    return command;
+}
 
 Command parseFunctionDefine(char *line)
 {
@@ -219,19 +223,6 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     fclose(file);
 }
 
-/**
- * @brief Removes all files with the prefix `ml-`.
- *
- * Command: `rm ml-*`
- * @param `void`
- * @return `void`
- */
-void DEV_TOOL_REMOVE_ML(void)
-{
-    char command[100];
-    sprintf(command, "rm ml-*");
-    system(command);
-}
 
 /**
  * @brief Generates a filename using the process ID.
@@ -329,18 +320,22 @@ void removeComment(char *line)
 {
     char *comment = strchr(line, '#');
     if (comment != NULL) {
-        
         *comment = '\0';
-        printf("@ Comment removed in line\n");
+        printf("@ Comment removed from line\n");
     }
 }
 
-// Checks a line for any errors
+/**
+ * @brief Validates the syntax of a line.
+ *
+ * @param line The line to be processed.
+ * @return `void`
+ */
 void validateSyntax(char *line) {
     // Check if line is an assignment
     if (strstr(line, "<-") != NULL) {
         // Validate the structure of the assignment
-        char identifier[64];
+        char identifier[IDENTIFIER_LENGTH];
         double value;
         if (sscanf(line, "%63s <- %lf", identifier, &value) != 2) {
             fprintf(stderr, "!Error: Invalid assignment\n");
@@ -348,7 +343,7 @@ void validateSyntax(char *line) {
     } 
     else if (strstr(line, "print") != NULL) {
         // Ensure it matches the "print expression" format
-        char expression[256];
+        char expression[EXPRESSION_LENGTH];
         if (sscanf(line, "print %[^\n]", expression) != 1) {
             fprintf(stderr, "!Error: Invalid print statement\n");
         } else {
