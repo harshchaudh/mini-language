@@ -17,6 +17,9 @@
 #define EXPRESSION_LENGTH 256   // Maximum length of an expression
 #define INCLUDE_EXT 1           // Include the extension in the filename
 #define EXCLUDE_EXT 0           // Exclude the extension in the filename
+#define RED         "\033[31m"
+#define WHITE       "\033[37m"
+#define RESET       "\033[0m"
 
 /** @brief A structure that defines a variable. */
 typedef struct variable {
@@ -68,7 +71,7 @@ Command parseAssignment(char *line)
     command.type = ASSIGNMENT;
     sscanf(line, "%s <- %le", command.var.name, &command.var.value);
 
-    printf("@ Assignment Variable name: %s, Value: %lf\n", command.var.name, command.var.value);
+    printf(RED "@ Assignment Variable name: %s, Value: %lf\n" RESET, command.var.name, command.var.value);
 
     return command;
 }
@@ -159,7 +162,7 @@ Command parsePrint(char *line)
 
     sscanf(line, "print %[^\n]", command.exp.expression);
 
-    printf("@ Parsed Expression: %s\n", command.exp.expression);
+    printf(RED "@ Parsed Expression: %s\n" RESET, command.exp.expression);
 
 
     return command;
@@ -204,13 +207,20 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     for (int i = 0; i < commandCount; i++) {
         switch (commands[i].type) {
         case ASSIGNMENT:
-            printf("@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n", commands[i].type,commands[i].var.name, commands[i].var.value);
+            printf(RED "@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n" RESET, commands[i].type,commands[i].var.name, commands[i].var.value);
             fprintf(file, "\tdouble %s = %f;\n", commands[i].var.name, commands[i].var.value);
+            fflush(stdout);
             break;
 
         case PRINT:
-            printf("@ Command type: PRINT(%d), Expression: %s\n",commands[i].type, commands[i].exp.expression);
-            fprintf(file, "\tprintf(\"%%g\\n\", %s);\n", commands[i].exp.expression);
+            printf(RED "@ Command type: PRINT(%d), Expression: %s\n" RESET ,commands[i].type, commands[i].exp.expression);
+            if (strchr(commands[i].exp.expression, '.') != NULL || strlen(commands[i].exp.expression)==1) {
+            fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commands[i].exp.expression);
+            } else {
+            // Otherwise, print as integer
+            fprintf(file, "\tprintf(\"%%d\\n\", (int)(%s));\n", commands[i].exp.expression);
+            }
+            fflush(stdout);
             break;
 
         default:
@@ -321,7 +331,7 @@ void removeComment(char *line)
     char *comment = strchr(line, '#');
     if (comment != NULL) {
         *comment = '\0';
-        printf("@ Comment removed from line\n");
+        printf(RED "@ Comment removed from line\n" RESET);
     }
 }
 
@@ -331,14 +341,38 @@ void removeComment(char *line)
  * @param line The line to be processed.
  * @return `void`
  */
+// Function to validate the characters in an expression
+int isValidExpression(const char *expression) {
+    int parenthesis_count = 0;
+    for (const char *p = expression; *p != '\0'; p++) {
+        if (isalnum(*p) || strchr(" +-*/().,", *p)) {
+            // Check for parentheses balance
+            if (*p == '(') {
+                parenthesis_count++;
+            } else if (*p == ')') {
+                if (parenthesis_count <= 0) return 0; // Unmatched closing parenthesis
+                parenthesis_count--;
+            }
+        } else if (*p == '_') {
+            // Allow underscore for function names
+            continue;
+        } else {
+            return 0; // Invalid character
+        }
+    }
+    return parenthesis_count == 0; // Ensure all parentheses are matched
+}
+
 void validateSyntax(char *line) {
     // Check if line is an assignment
     if (strstr(line, "<-") != NULL) {
         // Validate the structure of the assignment
         char identifier[IDENTIFIER_LENGTH];
-        double value;
-        if (sscanf(line, "%63s <- %lf", identifier, &value) != 2) {
+        char expression[EXPRESSION_LENGTH];
+        if (sscanf(line, "%63s <- %[^\n]", identifier, expression) != 2) {
             fprintf(stderr, "!Error: Invalid assignment\n");
+        } else if (!isValidExpression(expression)) {
+            fprintf(stderr, "!Error: Invalid character in assignment expression\n");
         }
     } 
     else if (strstr(line, "print") != NULL) {
@@ -346,25 +380,21 @@ void validateSyntax(char *line) {
         char expression[EXPRESSION_LENGTH];
         if (sscanf(line, "print %[^\n]", expression) != 1) {
             fprintf(stderr, "!Error: Invalid print statement\n");
+        } else if (!isValidExpression(expression)) {
+            fprintf(stderr, "!Error: Invalid character in print expression\n");
         } else {
-            for (char *p = expression; *p != '\0'; p++) {
-                if (!isalnum(*p) && !strchr(" +-*/().", *p)) {
-                    fprintf(stderr, "!Error: Invalid character in expression\n");
-                    break;
-                }
-            }
-        }
+            fprintf(stderr, "!Error: Unrecognized statement\n");
+        } 
+    // skip empty lines
+    } else if (line[0] == '\0') {
+        return; } 
+        // To be continued to work on function and their body
+    else {
+        return;
+            //fprintf(stderr, "!Error: Unrecognized statement\n");
+        } 
     }
 
-    // skip empty lines
-    else if (line[0] == '\0') {
-        return;
-    } 
-    // To be continued to work on function and their body
-    else {
-        fprintf(stderr, "!Error: Unrecognized statement\n");
-    }
-}
 
 
 /**
@@ -394,9 +424,9 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
         // Remove trailing newline characters (both \r and \n)
         line[strcspn(line, "\r\n")] = '\0';
 
-        printf("@ Got Line: %s\n", line);
+        printf(RED "@ Got Line: %s\n" RESET, line);
         removeComment(line);
-        validateSyntax(line);
+        //validateSyntax(line);
 
         if (strstr(line, "<-") != NULL) {
             commands[commandCount++] = parseAssignment(line);
