@@ -64,10 +64,13 @@ Command parsePrint(char *line)
 {
     Command command;
     command.type = PRINT;
+    command.var.value = 0;
+    strcpy(command.var.name ,"\0");
 
     sscanf(line, "print %[^\n]", command.exp.expression);
 
     printf("@ Parsed Expression: %s\n", command.exp.expression);
+
 
     return command;
 }
@@ -93,14 +96,16 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
     for (int i = 0; i < commandCount; i++) {
 
-        printf("@ Command type: %d, Variable name: %s, Value: %f\n", commands[i].type, commands[i].var.name, commands[i].var.value);
+        //printf("@ Command type: %d, Variable name: %s, Value: %f\n", commands[i].type, commands[i].var.name, commands[i].var.value);
 
         switch (commands[i].type) {
         case ASSIGNMENT:
+            printf("@ Command type: ASSIGNMENT, Variable name: %s, Value: %f\n", commands[i].var.name, commands[i].var.value);
             fprintf(file, "\tdouble %s = %f;\n", commands[i].var.name, commands[i].var.value);
             break;
 
         case PRINT:
+            printf("@ Command type: PRINT, Expression: %s\n", commands[i].exp.expression);
             fprintf(file, "\tprintf(\"%%g\\n\", %s);\n", commands[i].exp.expression);
             break;
 
@@ -225,8 +230,9 @@ void removeComment(char *line)
 {
     char *comment = strchr(line, '#');
     if (comment != NULL) {
-        printf("@ Comment removed in line: %s\n", line);
+        
         *comment = '\0';
+        printf("@ Comment removed in line\n");
     }
 }
 
@@ -244,14 +250,16 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        fprintf(stderr, "Error: `%s` not found.\n", filename);
+        fprintf(stderr, "!Error: `%s` not found.\n", filename);
         exit(EXIT_FAILURE);
     }
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
+        // Remove trailing newline characters (both \r and \n)
+        line[strcspn(line, "\r\n")] = '\0';
 
-        printf("@ Line: %s\n", line);
+        printf("@ Got Line: %s\n", line);
         removeComment(line);
 
         if (strstr(line, "<-") != NULL) {
