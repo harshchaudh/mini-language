@@ -97,8 +97,6 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
     for (int i = 0; i < commandCount; i++) {
 
-        //printf("@ Command type: %d, Variable name: %s, Value: %f\n", commands[i].type, commands[i].var.name, commands[i].var.value);
-
         switch (commands[i].type) {
         case ASSIGNMENT:
             printf("@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n", commands[i].type,commands[i].var.name, commands[i].var.value);
@@ -256,7 +254,6 @@ void validateSyntax(char *line) {
         } else {
             for (char *p = expression; *p != '\0'; p++) {
                 if (!isalnum(*p) && !strchr(" +-*/().", *p)) {
-                    //fprintf(stderr, "current char==%c\n", *p);
                     fprintf(stderr, "!Error: Invalid character in expression\n");
                     break;
                 }
@@ -286,7 +283,6 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 {
     Command commands[MAX_INPUT_LINES];
     int commandCount = 0;
-    //int lineNum =1;
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
