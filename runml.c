@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define MAX_LINE 100         // Maximum number of characters in a line
 #define MAX_INPUT_LINES 1000 // Maximum number of lines in the input file
@@ -247,14 +248,22 @@ void validateSyntax(char *line) {
             fprintf(stderr, "!Error: Invalid assignment\n");
         }
     } 
-    // Check if line is a print statement
     else if (strstr(line, "print") != NULL) {
         // Ensure it matches the "print expression" format
         char expression[256];
         if (sscanf(line, "print %[^\n]", expression) != 1) {
             fprintf(stderr, "!Error: Invalid print statement\n");
+        } else {
+            for (char *p = expression; *p != '\0'; p++) {
+                if (!isalnum(*p) && !strchr(" +-*/().", *p)) {
+                    //fprintf(stderr, "current char==%c\n", *p);
+                    fprintf(stderr, "!Error: Invalid character in expression\n");
+                    break;
+                }
+            }
         }
-    } 
+    }
+
     // skip empty lines
     else if (line[0] == '\0') {
         return;
