@@ -5,44 +5,31 @@
 
 // Reference: DoctorWkt. 2019. acwj. https://github.com/DoctorWkt/acwj. (2024).
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ctype.h>
 
-#define MAX_LINE 100            // Maximum number of characters in a line
-#define MAX_INPUT_LINES 1000    // Maximum number of lines in the input file
-#define IDENTIFIER_LENGTH 64    // Maximum length of an identifier
-#define EXPRESSION_LENGTH 256   // Maximum length of an expression
-#define INCLUDE_EXT 1           // Include the extension in the filename
-#define EXCLUDE_EXT 0           // Exclude the extension in the filename
-#define RED         "\033[31m"
-#define WHITE       "\033[37m"
-#define RESET       "\033[0m"
+#define MAX_LINE 100          // Maximum number of characters in a line
+#define MAX_INPUT_LINES 1000  // Maximum number of lines in the input file
+#define IDENTIFIER_LENGTH 64  // Maximum length of an identifier
+#define EXPRESSION_LENGTH 256 // Maximum length of an expression
+#define INCLUDE_EXT 1         // Include the extension in the filename
+#define EXCLUDE_EXT 0         // Exclude the extension in the filename
+#define RED "\033[31m"
+#define WHITE "\033[37m"
+#define RESET "\033[0m"
 
-/** @brief A structure that defines a variable. */
 typedef struct variable {
-    char name[IDENTIFIER_LENGTH];
-    double value;
+    char name[IDENTIFIER_LENGTH]; // Variable name
+    double value;                 // Variable value
 } Variable;
-
-/** @brief A structure that defines a function. */
-typedef struct function {
-    char name[IDENTIFIER_LENGTH];
-    Variable *args;
-    int argCount;
-    char returnVar[IDENTIFIER_LENGTH];
-    int voidStatus;
-} Function;
-
 
 typedef struct expression {
     char expression[256];
 } Expression;
 
-
-/** @brief An enum that defines all the command types. */
 typedef enum commandType {
     ASSIGNMENT,
     PRINT,
@@ -51,20 +38,27 @@ typedef enum commandType {
     FUNCTION_RETURN,
 } CommandType;
 
-/** @brief A structure that defines a command. */
+typedef struct function Function;
+
 typedef struct command {
     CommandType type;
-    Function func;
     Variable var;
     Expression exp;
+    Function *func;
 } Command;
 
-/**
- * @brief Parses an assignment command.
- *
- * @param line The line to be processed.
- * @return The parsed command.
- */
+typedef struct function {
+    char name[IDENTIFIER_LENGTH];
+
+    Variable *args;
+    int argCount;
+
+    char returnVar[IDENTIFIER_LENGTH];
+
+    Command *commands;
+    int statementCount;
+} Function;
+
 Command parseAssignment(char *line)
 {
     Command command;
@@ -80,29 +74,38 @@ Command parseFunctionDefine(char *line)
 {
     Command command;
     command.type = FUNCTION_DEFINE;
-    char argsBuffer[100];
+    char argsBuffer[100]; // Buffer to store the arguments
 
-    sscanf(line, "function %s %[^\n]", command.func.name, argsBuffer); // `%[^\n]` reads until the end of the line; line is stored in argsBuffer
+    command.func = malloc(sizeof(Function));
+
+    sscanf(line, "function %s %[^\n]", command.func->name, argsBuffer);
 
     char *argsBufferCopy = malloc(strlen(argsBuffer) + 1);
     strcpy(argsBufferCopy, argsBuffer);
 
+    // Tokenize argsBuffer to count the arguments
     char *arg = strtok(argsBuffer, " ");
-    command.func.argCount = 0;
+    command.func->argCount = 0;
     while (arg != NULL) {
+        command.func->argCount++;
         arg = strtok(NULL, " ");
-        command.func.argCount++; // Increment the argument count for that function
     }
 
-    command.func.args = malloc(command.func.argCount * sizeof(Variable));
+    command.func->args = malloc(command.func->argCount * sizeof(Variable));
+
     arg = strtok(argsBufferCopy, " ");
     int i = 0;
     while (arg != NULL) {
-        strcpy(command.func.args[i].name, arg);
-        command.func.args[i].value = 0.0;
+        strcpy(command.func->args[i].name, arg);
+        command.func->args[i].value = 0.0;
         arg = strtok(NULL, " ");
         i++;
     }
+
+    free(argsBufferCopy);
+
+    command.func->statementCount = 0;
+    command.func->commands = malloc(100 * sizeof(Command));
 
     return command;
 }
@@ -110,7 +113,7 @@ Command parseFunctionDefine(char *line)
 Command parseFunctionReturn(char *line, Command command)
 {
     command.type = FUNCTION_RETURN;
-    sscanf(line, "\treturn %[^\n]", command.func.returnVar);
+    sscanf(line, "\treturn %[^\n]", command.func->returnVar);
 
     return command;
 }
@@ -121,7 +124,7 @@ int getFunctionIndex(char *line, Command commandFunctions[], int functionCount)
     sscanf(line, "%[^(]", functionName);
 
     for (int i = 0; i < functionCount; i++) {
-        if (strcmp(commandFunctions[i].func.name, functionName) == 0) {
+        if (strcmp(commandFunctions[i].func->name, functionName) == 0) {
             return i;
         }
     }
@@ -139,14 +142,15 @@ Command parseFunctionCall(char *line, Command command)
     char *arg = strtok(argsBuffer, ", ");
     int i = 0;
 
-    while (arg != NULL && i < command.func.argCount) {
-        command.func.args[i].value = atof(arg);
+    while (arg != NULL && i < command.func->argCount) {
+        command.func->args[i].value = atof(arg);
         arg = strtok(NULL, " ");
         i++;
     }
-  
+
     return command;
 }
+
 /**
  * @brief Parses a print command.
  *
@@ -158,14 +162,24 @@ Command parsePrint(char *line)
     Command command;
     command.type = PRINT;
     command.var.value = 0;
-    strcpy(command.var.name ,"\0");
+    strcpy(command.var.name, "\0");
 
     sscanf(line, "print %[^\n]", command.exp.expression);
 
     printf(RED "@ Parsed Expression: %s\n" RESET, command.exp.expression);
 
-
     return command;
+}
+
+void parseFunctionPrint(char *line, Function *func)
+{
+    func->commands[func->statementCount].type = PRINT;
+    func->commands[func->statementCount].var.value = 0;
+    strcpy(func->commands[func->statementCount].var.name, "\0");
+
+    sscanf(line, "\tprint %[^\n]", func->commands[func->statementCount].exp.expression);
+
+    func->statementCount++;
 }
 
 /**
@@ -176,7 +190,7 @@ Command parsePrint(char *line)
  * @param commandCount The number of commands to be written to the file.
  * @return `void`
  */
-void createFile(const char *newFilenameWithExt, Command commands[], int commandCount, Command functionCommands[], int functionCount)
+void createFile(const char *newFilenameWithExt, Command commands[], int commandCount, Command commandFunctions[], int functionCount)
 {
     FILE *file = fopen(newFilenameWithExt, "w");
     if (file == NULL) {
@@ -187,17 +201,28 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     fprintf(file, "#include <stdio.h>\n\n");
 
     for (int i = 0; i < functionCount; i++) {
-        fprintf(file, "double %s(", functionCommands[i].func.name);
-        for (int j = 0; j < functionCommands[i].func.argCount; j++) {
-            fprintf(file, "double %s", functionCommands[i].func.args[j].name);
-            if (j < functionCommands[i].func.argCount - 1) {
+        fprintf(file, "double %s(", commandFunctions[i].func->name);
+        for (int j = 0; j < commandFunctions[i].func->argCount; j++) {
+            fprintf(file, "double %s", commandFunctions[i].func->args[j].name);
+            if (j < commandFunctions[i].func->argCount - 1) {
                 fprintf(file, ", ");
             }
         }
         fprintf(file, ") \n{\n");
 
-        if (functionCommands[i].type == FUNCTION_RETURN) {
-            fprintf(file, "\treturn %s;\n", functionCommands[i].func.returnVar);
+        for (int j = 0; j < commandFunctions[i].func->statementCount; j++) {
+            switch (commandFunctions[i].func->commands[j].type) {
+            case PRINT:
+                fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commandFunctions[i].func->commands[j].exp.expression);
+                break;
+            default:
+                fprintf(stderr, "!Error: Unknown command type %d.\n", commandFunctions[i].func->commands[j].type);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        if (commandFunctions[i].type == FUNCTION_RETURN) {
+            fprintf(file, "\treturn %s;\n", commandFunctions[i].func->returnVar);
         }
 
         fprintf(file, "}\n\n");
@@ -207,18 +232,17 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     for (int i = 0; i < commandCount; i++) {
         switch (commands[i].type) {
         case ASSIGNMENT:
-            printf(RED "@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n" RESET, commands[i].type,commands[i].var.name, commands[i].var.value);
+            printf(RED "@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n" RESET, commands[i].type, commands[i].var.name, commands[i].var.value);
             fprintf(file, "\tdouble %s = %f;\n", commands[i].var.name, commands[i].var.value);
             fflush(stdout);
             break;
 
         case PRINT:
-            printf(RED "@ Command type: PRINT(%d), Expression: %s\n" RESET ,commands[i].type, commands[i].exp.expression);
-            if (strchr(commands[i].exp.expression, '.') != NULL || strlen(commands[i].exp.expression)==1) {
-            fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commands[i].exp.expression);
+            printf(RED "@ Command type: PRINT(%d), Expression: %s\n" RESET, commands[i].type, commands[i].exp.expression);
+            if (strchr(commands[i].exp.expression, '.') != NULL || strlen(commands[i].exp.expression) == 1) {
+                fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commands[i].exp.expression);
             } else {
-            // Otherwise, print as integer
-            fprintf(file, "\tprintf(\"%%d\\n\", (int)(%s));\n", commands[i].exp.expression);
+                fprintf(file, "\tprintf(\"%%d\\n\", (int)(%s));\n", commands[i].exp.expression);
             }
             fflush(stdout);
             break;
@@ -232,7 +256,6 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     fprintf(file, "\treturn 0;\n}\n");
     fclose(file);
 }
-
 
 /**
  * @brief Generates a filename using the process ID.
@@ -336,13 +359,13 @@ void removeComment(char *line)
 }
 
 /**
- * @brief Validates the syntax of a line.
+ * @brief Checks if an expression is valid.
  *
- * @param line The line to be processed.
- * @return `void`
+ * @param expression The expression to be validated.
+ * @return `1` if the expression is valid, `0` otherwise.
  */
-// Function to validate the characters in an expression
-int isValidExpression(const char *expression) {
+int isValidExpression(const char *expression)
+{
     int parenthesis_count = 0;
     for (const char *p = expression; *p != '\0'; p++) {
         if (isalnum(*p) || strchr(" +-*/().,", *p)) {
@@ -350,7 +373,8 @@ int isValidExpression(const char *expression) {
             if (*p == '(') {
                 parenthesis_count++;
             } else if (*p == ')') {
-                if (parenthesis_count <= 0) return 0; // Unmatched closing parenthesis
+                if (parenthesis_count <= 0)
+                    return 0; // Unmatched closing parenthesis
                 parenthesis_count--;
             }
         } else if (*p == '_') {
@@ -363,7 +387,8 @@ int isValidExpression(const char *expression) {
     return parenthesis_count == 0; // Ensure all parentheses are matched
 }
 
-void validateSyntax(char *line) {
+void validateSyntax(char *line)
+{
     // Check if line is an assignment
     if (strstr(line, "<-") != NULL) {
         // Validate the structure of the assignment
@@ -374,8 +399,7 @@ void validateSyntax(char *line) {
         } else if (!isValidExpression(expression)) {
             fprintf(stderr, "!Error: Invalid character in assignment expression\n");
         }
-    } 
-    else if (strstr(line, "print") != NULL) {
+    } else if (strstr(line, "print") != NULL) {
         // Ensure it matches the "print expression" format
         char expression[EXPRESSION_LENGTH];
         if (sscanf(line, "print %[^\n]", expression) != 1) {
@@ -384,18 +408,17 @@ void validateSyntax(char *line) {
             fprintf(stderr, "!Error: Invalid character in print expression\n");
         } else {
             fprintf(stderr, "!Error: Unrecognized statement\n");
-        } 
-    // skip empty lines
+        }
+        // skip empty lines
     } else if (line[0] == '\0') {
-        return; } 
-        // To be continued to work on function and their body
+        return;
+    }
+    // To be continued to work on function and their body
     else {
         return;
-            //fprintf(stderr, "!Error: Unrecognized statement\n");
-        } 
+        // fprintf(stderr, "!Error: Unrecognized statement\n");
     }
-
-
+}
 
 /**
  * @brief Generates code from a given file.
@@ -421,28 +444,28 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
-        // Remove trailing newline characters (both \r and \n)
-        line[strcspn(line, "\r\n")] = '\0';
+        line[strcspn(line, "\r\n")] = '\0'; // Remove trailing newline characters (both \r and \n)
 
-        printf(RED "@ Got Line: %s\n" RESET, line);
+        printf(RED "@ Parsing Line: %s\n" RESET, line);
         removeComment(line);
-        //validateSyntax(line);
-
         if (strstr(line, "<-") != NULL) {
             commands[commandCount++] = parseAssignment(line);
-        } else if (strstr(line, "print") != NULL) {
-            commands[commandCount++] = parsePrint(line);
         } else if (strstr(line, "function") != NULL) {
+            commandFunctions[functionCount] = parseFunctionDefine(line);
             functionIndex = functionCount;
-            commandFunctions[functionCount++] = parseFunctionDefine(line);
+            functionCount++;
+        } else if (strstr(line, "print") != NULL && functionIndex == -1) {
+            commands[commandCount++] = parsePrint(line);
+        } else if (functionIndex != -1 && strstr(line, "print") != NULL) {
+            parseFunctionPrint(line, commandFunctions[functionIndex].func);
+            functionIndex = -1;
         } else if (strstr(line, "return") != NULL) {
             commandFunctions[functionIndex] = parseFunctionReturn(line, commandFunctions[functionIndex]);
-
+            functionIndex = -1;
         } else if ((strstr(line, "(") != NULL) && (strstr(line, ")") != NULL)) {
-            int functionIndex = getFunctionIndex(line, commandFunctions, functionCount);
+            functionIndex = getFunctionIndex(line, commandFunctions, functionCount);
             commands[commandCount++] = parseFunctionCall(line, commandFunctions[functionIndex]);
         }
-
     }
 
     fclose(file);
@@ -463,7 +486,6 @@ void DEV_TOOL_REMOVE_ML(void)
     sprintf(command, "rm ml-*");
     system(command);
 }
-
 
 int main(int argc, char *argv[])
 {
