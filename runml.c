@@ -36,6 +36,7 @@ typedef enum commandType {
     FUNCTION_CALL,
     FUNCTION_DEFINE,
     FUNCTION_RETURN,
+    FUNCTION_LINE
 } CommandType;
 
 typedef struct function Function;
@@ -182,6 +183,21 @@ void parseFunctionPrint(char *line, Function *func)
     func->statementCount++;
 }
 
+void parseFunctionAssign(char *line, Function *func)
+{
+    Command command;
+    command.type = ASSIGNMENT;
+
+    sscanf(line, "%s <- %[^\n]", command.var.name, command.exp.expression);
+
+    printf(RED "@ Assignment within function: Variable name: %s, Expression: %s\n" RESET, command.var.name, command.exp.expression);
+
+    // Add the command to the function's list of commands
+    func->commands[func->statementCount++] = command;
+}
+
+
+
 /**
  * @brief Creates an exectuable C file.
  *
@@ -212,14 +228,23 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
         for (int j = 0; j < commandFunctions[i].func->statementCount; j++) {
             switch (commandFunctions[i].func->commands[j].type) {
-            case PRINT:
-                fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commandFunctions[i].func->commands[j].exp.expression);
-                break;
-            default:
-                fprintf(stderr, "!Error: Unknown command type %d.\n", commandFunctions[i].func->commands[j].type);
-                exit(EXIT_FAILURE);
+                case PRINT:
+                    fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commandFunctions[i].func->commands[j].exp.expression);
+                    break;
+
+                case ASSIGNMENT:
+                    fprintf(file, "\tdouble %s = 0;\n", commandFunctions[i].func->commands[j].var.name);
+                    fprintf(file, "\t%s = %s;\n", 
+                            commandFunctions[i].func->commands[j].var.name, 
+                            commandFunctions[i].func->commands[j].exp.expression);
+                    break;
+
+                default:
+                    fprintf(stderr, "!Error: Unknown command type %d.\n", commandFunctions[i].func->commands[j].type);
+                    exit(EXIT_FAILURE);
             }
         }
+
 
         if (commandFunctions[i].type == FUNCTION_RETURN) {
             fprintf(file, "\treturn %s;\n", commandFunctions[i].func->returnVar);
@@ -435,6 +460,7 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
     Command commandFunctions[MAX_INPUT_LINES];
     int functionCount = 0;
     int functionIndex = -1;
+    int insideFunction = 0;  // Track whether we're inside a function
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -444,27 +470,54 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
-        line[strcspn(line, "\r\n")] = '\0'; // Remove trailing newline characters (both \r and \n)
-
+        line[strcspn(line, "\r\n")] = '\0';  // Remove trailing newline characters (both \r and \n)
         printf(RED "@ Parsing Line: %s\n" RESET, line);
         removeComment(line);
-        if (strstr(line, "<-") != NULL) {
-            commands[commandCount++] = parseAssignment(line);
-        } else if (strstr(line, "function") != NULL) {
+
+        if (commandCount >= MAX_INPUT_LINES || functionCount >= MAX_INPUT_LINES) {
+            fprintf(stderr, "!Error: Exceeded maximum input line limit.\n");
+            fclose(file);
+            exit(EXIT_FAILURE);
+        }
+
+        // Check if we are in a function
+        if (strstr(line, "function") != NULL) {
+            // Parse function definition
             commandFunctions[functionCount] = parseFunctionDefine(line);
             functionIndex = functionCount;
+            insideFunction = 1;  // Set flag to indicate we're inside a function
             functionCount++;
-        } else if (strstr(line, "print") != NULL && functionIndex == -1) {
-            commands[commandCount++] = parsePrint(line);
-        } else if (functionIndex != -1 && strstr(line, "print") != NULL) {
-            parseFunctionPrint(line, commandFunctions[functionIndex].func);
-            functionIndex = -1;
-        } else if (strstr(line, "return") != NULL) {
+        }
+        else if (insideFunction && strstr(line, "return") != NULL) {
+            // Handle return statement inside a function
             commandFunctions[functionIndex] = parseFunctionReturn(line, commandFunctions[functionIndex]);
+            insideFunction = 0;  // We're exiting the function
             functionIndex = -1;
-        } else if ((strstr(line, "(") != NULL) && (strstr(line, ")") != NULL)) {
+        }
+        else if (insideFunction && strstr(line, "<-") != NULL) {
+            // Handle assignment inside a function
+            parseFunctionAssign(line, commandFunctions[functionIndex].func);
+        }
+        else if (!insideFunction && strstr(line, "<-") != NULL) {
+            // Handle assignment outside a function (global scope)
+            commands[commandCount++] = parseAssignment(line);
+        }
+        else if ((strncmp(line, "print", 5) == 0 && (line[5] == '\0' || isspace(line[5]))) && !insideFunction) {
+            // Standalone print statement in global scope
+            commands[commandCount++] = parsePrint(line);
+        }
+        else if (insideFunction && strstr(line, "print") != NULL) {
+            // Print statement inside a function
+            parseFunctionPrint(line, commandFunctions[functionIndex].func);
+        }
+        else if ((strstr(line, "(") != NULL) && (strstr(line, ")") != NULL)) {
+            // Handle function call
             functionIndex = getFunctionIndex(line, commandFunctions, functionCount);
-            commands[commandCount++] = parseFunctionCall(line, commandFunctions[functionIndex]);
+            if (functionIndex != -1) {
+                commands[commandCount++] = parseFunctionCall(line, commandFunctions[functionIndex]);
+            } else {
+                fprintf(stderr, "!Error: Undefined function call: %s\n", line);
+            }
         }
     }
 
@@ -472,6 +525,8 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     createFile(newFilenameWithExt, commands, commandCount, commandFunctions, functionCount);
 }
+
+
 
 /**
  * @brief Removes all files with the prefix `ml-`.
