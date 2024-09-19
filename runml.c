@@ -36,7 +36,8 @@ typedef enum commandType {
     FUNCTION_CALL,
     FUNCTION_DEFINE,
     FUNCTION_RETURN,
-    FUNCTION_LINE
+    FUNCTION_LINE,
+    GLB_ASSIGNMENT
 } CommandType;
 
 typedef struct function Function;
@@ -67,6 +68,17 @@ Command parseAssignment(char *line)
     sscanf(line, "%s <- %le", command.var.name, &command.var.value);
 
     printf(RED "@ Assignment Variable name: %s, Value: %lf\n" RESET, command.var.name, command.var.value);
+
+    return command;
+}
+
+Command parseGlobalAssignment(char *line)
+{
+    Command command;
+    command.type = GLB_ASSIGNMENT;
+    sscanf(line, "%s <- %le", command.var.name, &command.var.value);
+
+    printf(RED "@ global Assignment Variable name: %s, Value: %lf\n" RESET, command.var.name, command.var.value);
 
     return command;
 }
@@ -215,6 +227,16 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     }
 
     fprintf(file, "#include <stdio.h>\n\n");
+    for (int i = 0; i < commandCount; i++) {
+
+        switch (commands[i].type) {
+        case ASSIGNMENT:
+            printf(RED "@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n" RESET, commands[i].type, commands[i].var.name, commands[i].var.value);
+            fprintf(file, "double %s = %f;\n", commands[i].var.name, commands[i].var.value);
+            fflush(stdout);
+            break;
+        default:
+            break;} }
 
     for (int i = 0; i < functionCount; i++) {
         fprintf(file, "double %s(", commandFunctions[i].func->name);
@@ -257,9 +279,6 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
     for (int i = 0; i < commandCount; i++) {
         switch (commands[i].type) {
         case ASSIGNMENT:
-            printf(RED "@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n" RESET, commands[i].type, commands[i].var.name, commands[i].var.value);
-            fprintf(file, "\tdouble %s = %f;\n", commands[i].var.name, commands[i].var.value);
-            fflush(stdout);
             break;
 
         case PRINT:
