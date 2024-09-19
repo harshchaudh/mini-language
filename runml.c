@@ -151,7 +151,6 @@ Command parseFunctionCall(char *line, Command command)
     char argsBuffer[100];
 
     sscanf(line, "%*[^ (](%[^)])", argsBuffer); // `%[^)]` reads until `)`; line is stored in argsBuffer
-
     char *arg = strtok(argsBuffer, ", ");
     int i = 0;
 
@@ -208,8 +207,6 @@ void parseFunctionAssign(char *line, Function *func)
     func->commands[func->statementCount++] = command;
 }
 
-
-
 /**
  * @brief Creates an exectuable C file.
  *
@@ -236,7 +233,9 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
             fflush(stdout);
             break;
         default:
-            break;} }
+            break;
+        }
+    }
 
     for (int i = 0; i < functionCount; i++) {
         fprintf(file, "double %s(", commandFunctions[i].func->name);
@@ -250,23 +249,22 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
         for (int j = 0; j < commandFunctions[i].func->statementCount; j++) {
             switch (commandFunctions[i].func->commands[j].type) {
-                case PRINT:
-                    fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commandFunctions[i].func->commands[j].exp.expression);
-                    break;
+            case PRINT:
+                fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commandFunctions[i].func->commands[j].exp.expression);
+                break;
 
-                case ASSIGNMENT:
-                    fprintf(file, "\tdouble %s = 0;\n", commandFunctions[i].func->commands[j].var.name);
-                    fprintf(file, "\t%s = %s;\n", 
-                            commandFunctions[i].func->commands[j].var.name, 
-                            commandFunctions[i].func->commands[j].exp.expression);
-                    break;
+            case ASSIGNMENT:
+                fprintf(file, "\tdouble %s = 0;\n", commandFunctions[i].func->commands[j].var.name);
+                fprintf(file, "\t%s = %s;\n",
+                        commandFunctions[i].func->commands[j].var.name,
+                        commandFunctions[i].func->commands[j].exp.expression);
+                break;
 
-                default:
-                    fprintf(stderr, "!Error: Unknown command type %d.\n", commandFunctions[i].func->commands[j].type);
-                    exit(EXIT_FAILURE);
+            default:
+                fprintf(stderr, "!Error: Unknown command type %d.\n", commandFunctions[i].func->commands[j].type);
+                exit(EXIT_FAILURE);
             }
         }
-
 
         if (commandFunctions[i].type == FUNCTION_RETURN) {
             fprintf(file, "\treturn %s;\n", commandFunctions[i].func->returnVar);
@@ -289,6 +287,17 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
                 fprintf(file, "\tprintf(\"%%d\\n\", (int)(%s));\n", commands[i].exp.expression);
             }
             fflush(stdout);
+            break;
+        case FUNCTION_CALL:
+            printf(RED "@ Command type: FUNCTION_CALL(%d), Function name: %s\n" RESET, commands[i].type, commands[i].func->name);
+            fprintf(file, "\t%s(", commands[i].func->name);
+            for (int j = 0; j < commands[i].func->argCount; j++) {
+                fprintf(file, "%f", commands[i].func->args[j].value);
+                if (j < commands[i].func->argCount - 1) {
+                    fprintf(file, ", ");
+                }
+            }
+            fprintf(file, ");\n");
             break;
 
         default:
@@ -479,7 +488,7 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
     Command commandFunctions[MAX_INPUT_LINES];
     int functionCount = 0;
     int functionIndex = -1;
-    int insideFunction = 0;  // Track whether we're inside a function
+    int insideFunction = 0; // Track whether we're inside a function
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -489,7 +498,7 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
-        line[strcspn(line, "\r\n")] = '\0';  // Remove trailing newline characters (both \r and \n)
+        line[strcspn(line, "\r\n")] = '\0'; // Remove trailing newline characters (both \r and \n)
         printf(RED "@ Parsing Line: %s\n" RESET, line);
         removeComment(line);
 
@@ -504,32 +513,26 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
             // Parse function definition
             commandFunctions[functionCount] = parseFunctionDefine(line);
             functionIndex = functionCount;
-            insideFunction = 1;  // Set flag to indicate we're inside a function
+            insideFunction = 1; // Set flag to indicate we're inside a function
             functionCount++;
-        }
-        else if (insideFunction && strstr(line, "return") != NULL) {
+        } else if (insideFunction && strstr(line, "return") != NULL) {
             // Handle return statement inside a function
             commandFunctions[functionIndex] = parseFunctionReturn(line, commandFunctions[functionIndex]);
-            insideFunction = 0;  // We're exiting the function
+            insideFunction = 0; // We're exiting the function
             functionIndex = -1;
-        }
-        else if (insideFunction && strstr(line, "<-") != NULL) {
+        } else if (insideFunction && strstr(line, "<-") != NULL) {
             // Handle assignment inside a function
             parseFunctionAssign(line, commandFunctions[functionIndex].func);
-        }
-        else if (!insideFunction && strstr(line, "<-") != NULL) {
+        } else if (!insideFunction && strstr(line, "<-") != NULL) {
             // Handle assignment outside a function (global scope)
             commands[commandCount++] = parseAssignment(line);
-        }
-        else if ((strncmp(line, "print", 5) == 0 && (line[5] == '\0' || isspace(line[5]))) && !insideFunction) {
+        } else if ((strncmp(line, "print", 5) == 0 && (line[5] == '\0' || isspace(line[5]))) && !insideFunction) {
             // Standalone print statement in global scope
             commands[commandCount++] = parsePrint(line);
-        }
-        else if (insideFunction && strstr(line, "print") != NULL) {
+        } else if (insideFunction && strstr(line, "print") != NULL) {
             // Print statement inside a function
             parseFunctionPrint(line, commandFunctions[functionIndex].func);
-        }
-        else if ((strstr(line, "(") != NULL) && (strstr(line, ")") != NULL)) {
+        } else if ((strstr(line, "(") != NULL) && (strstr(line, ")") != NULL)) {
             // Handle function call
             functionIndex = getFunctionIndex(line, commandFunctions, functionCount);
             if (functionIndex != -1) {
@@ -544,8 +547,6 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
     createFile(newFilenameWithExt, commands, commandCount, commandFunctions, functionCount);
 }
-
-
 
 /**
  * @brief Removes all files with the prefix `ml-`.
