@@ -344,24 +344,33 @@ void removeComment(char *line)
 // Function to validate the characters in an expression
 int isValidExpression(const char *expression) {
     int parenthesis_count = 0;
+
     for (const char *p = expression; *p != '\0'; p++) {
-        if (isalnum(*p) || strchr(" +-*/().,", *p)) {
-            // Check for parentheses balance
+        if (isalnum(*p) || *p == '_') {
+            // Valid characters: alphanumeric or underscores for identifiers and functions
+            continue;
+        }
+        else if (strchr(" +-*/().,", *p)) {
+            // Operators, parentheses, and commas are valid
             if (*p == '(') {
                 parenthesis_count++;
             } else if (*p == ')') {
-                if (parenthesis_count <= 0) return 0; // Unmatched closing parenthesis
+                if (parenthesis_count <= 0) {
+                    return 0; // Unmatched closing parenthesis
+                }
                 parenthesis_count--;
             }
-        } else if (*p == '_') {
-            // Allow underscore for function names
-            continue;
-        } else {
-            return 0; // Invalid character
+        } 
+        else {
+            // Invalid character detected
+            return 0;
         }
     }
-    return parenthesis_count == 0; // Ensure all parentheses are matched
+    
+    // Return true only if all parentheses are matched
+    return parenthesis_count == 0;
 }
+
 
 void validateSyntax(char *line) {
     // Check if line is an assignment
@@ -375,27 +384,25 @@ void validateSyntax(char *line) {
             fprintf(stderr, "!Error: Invalid character in assignment expression\n");
         }
     } 
-    else if (strstr(line, "print") != NULL) {
-        // Ensure it matches the "print expression" format
+    // Check if line is a print statement
+    else if (strstr(line, "print") == line) { // Ensure it starts with "print"
         char expression[EXPRESSION_LENGTH];
         if (sscanf(line, "print %[^\n]", expression) != 1) {
             fprintf(stderr, "!Error: Invalid print statement\n");
         } else if (!isValidExpression(expression)) {
             fprintf(stderr, "!Error: Invalid character in print expression\n");
-        } else {
-            fprintf(stderr, "!Error: Unrecognized statement\n");
-        } 
-    // skip empty lines
-    } else if (line[0] == '\0') {
-        return; } 
-        // To be continued to work on function and their body
-    else {
-        return;
-            //fprintf(stderr, "!Error: Unrecognized statement\n");
-        } 
+        }
+        // If the expression is valid, no error should be printed
     }
-
-
+    // Skip empty lines
+    else if (line[0] == '\0' || isspace(line[0])) {
+        return;
+    }
+    // Unrecognized statements
+    else {
+        fprintf(stderr, "!Error: Unrecognized statement\n");
+    }
+}
 
 /**
  * @brief Generates code from a given file.
@@ -426,11 +433,12 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
 
         printf(RED "@ Got Line: %s\n" RESET, line);
         removeComment(line);
-        //validateSyntax(line);
 
         if (strstr(line, "<-") != NULL) {
+            validateSyntax(line);
             commands[commandCount++] = parseAssignment(line);
         } else if (strstr(line, "print") != NULL) {
+            validateSyntax(line);
             commands[commandCount++] = parsePrint(line);
         } else if (strstr(line, "function") != NULL) {
             functionIndex = functionCount;
