@@ -340,7 +340,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
         case PRINT:
             printf(RED "@ Command type: PRINT(%d), Expression: %s\n" RESET, commands[i].type, commands[i].exp.expression);
             if (strchr(commands[i].exp.expression, '.') != NULL || strlen(commands[i].exp.expression) == 1) {
-                fprintf(file, "\tprintf(\"%%f\\n\", %s);\n", commands[i].exp.expression);
+                fprintf(file, "\tprintf(\"%%.6f\\n\", %s);\n", commands[i].exp.expression);
             } else {
                 fprintf(file, "\tprintf(\"%%d\\n\", (int)(%s));\n", commands[i].exp.expression);
             }
@@ -514,8 +514,10 @@ void validateSyntax(char *line)
         char expression[EXPRESSION_LENGTH];
         if (sscanf(line, "%63s <- %[^\n]", identifier, expression) != 2) {
             fprintf(stderr, "!Error: Invalid assignment\n");
+            exit(EXIT_FAILURE);
         } else if (!isValidExpression(expression)) {
             fprintf(stderr, "!Error: Invalid character in assignment expression\n");
+            exit(EXIT_FAILURE);
         }
     } else if (strstr(line, "print") != NULL) {
         // Ensure it matches the "print expression" format
@@ -525,7 +527,7 @@ void validateSyntax(char *line)
         } else if (!isValidExpression(expression)) {
             fprintf(stderr, "!Error: Invalid character in print expression\n");
         } else {
-            fprintf(stderr, "!Error: Unrecognized statement\n");
+            fprintf(stderr, "!Error: Unrecognised statement\n");
         }
         // skip empty lines
     } else if (line[0] == '\0') {
@@ -595,11 +597,9 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
             commands[commandCount++] = parseAssignment(line);
         } else if ((strncmp(line, "print", 5) == 0 && (line[5] == '\0' || isspace(line[5]))) && !insideFunction) {
             // Standalone print statement in global scope
-            validateSyntax(line);
             commands[commandCount++] = parsePrint(line);
         } else if (insideFunction && strstr(line, "print") != NULL) {
             // Print statement inside a function
-            validateSyntax(line);
             parseFunctionPrint(line, commandFunctions[functionIndex].func);
         } else if ((strstr(line, "(") != NULL) && (strstr(line, ")") != NULL)) {
             // Handle function call
