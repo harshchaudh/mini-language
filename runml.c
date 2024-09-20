@@ -18,6 +18,8 @@
 #define INCLUDE_EXT 1         // Include the extension in the filename
 #define EXCLUDE_EXT 0         // Exclude the extension in the filename
 #define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
 #define WHITE "\033[37m"
 #define RESET "\033[0m"
 
@@ -285,7 +287,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
 
         switch (commands[i].type) {
         case ASSIGNMENT:
-            printf(RED "@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n" RESET, commands[i].type, commands[i].var.name, commands[i].var.value);
+            printf(YELLOW "@ Command type: ASSIGNMENT(%d), Variable name: %s, Value: %f\n" RESET, commands[i].type, commands[i].var.name, commands[i].var.value);
             fprintf(file, "double %s = %f;\n", commands[i].var.name, commands[i].var.value);
             fflush(stdout);
             break;
@@ -338,7 +340,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
             break;
 
         case PRINT:
-            printf(RED "@ Command type: PRINT(%d), Expression: %s\n" RESET, commands[i].type, commands[i].exp.expression);
+            printf(YELLOW "@ Command type: PRINT(%d), Expression: %s\n" RESET, commands[i].type, commands[i].exp.expression);
             if (strchr(commands[i].exp.expression, '.') != NULL || strlen(commands[i].exp.expression) == 1) {
                 fprintf(file, "\tprintf(\"%%.6f\\n\", %s);\n", commands[i].exp.expression);
             } else {
@@ -348,7 +350,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
             break;
 
         case FUNCTION_CALL:
-            printf(RED "@ Command type: FUNCTION_CALL(%d), Function name: %s\n" RESET, commands[i].type, commands[i].func->name);
+            printf(YELLOW "@ Command type: FUNCTION_CALL(%d), Function name: %s\n" RESET, commands[i].type, commands[i].func->name);
             fprintf(file, "\t%s(", commands[i].func->name);
             for (int j = 0; j < commands[i].func->argCount; j++) {
                 fprintf(file, "%f", commands[i].func->args[j].value);
@@ -566,7 +568,7 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
         line[strcspn(line, "\r\n")] = '\0'; // Remove trailing newline characters (both \r and \n)
-        printf(RED "@ Parsing Line: %s\n" RESET, line);
+        printf(GREEN "@ Parsing Line: " RESET "%s\n", line);
         removeComment(line);
 
         if (commandCount >= MAX_INPUT_LINES || functionCount >= MAX_INPUT_LINES) {
