@@ -22,12 +22,12 @@
 #define RESET "\033[0m"
 
 typedef struct variable {
-    char name[IDENTIFIER_LENGTH]; // Variable name
-    double value;                 // Variable value
+    char name[IDENTIFIER_LENGTH];
+    double value;                
 } Variable;
 
 typedef struct expression {
-    char expression[256];
+    char expression[EXPRESSION_LENGTH];
 } Expression;
 
 typedef enum commandType {
@@ -61,6 +61,12 @@ typedef struct function {
     int statementCount;
 } Function;
 
+/**
+ * @brief Parses an assignment.
+ * 
+ * @param line The line to be processed.
+ * @return The parsed command.
+ */
 Command parseAssignment(char *line)
 {
     Command command;
@@ -72,6 +78,12 @@ Command parseAssignment(char *line)
     return command;
 }
 
+/**
+ * @brief Parses a global assignment.
+ *
+ * @param line The line to be processed.
+ * @return The parsed command.
+ */
 Command parseGlobalAssignment(char *line)
 {
     Command command;
@@ -83,6 +95,12 @@ Command parseGlobalAssignment(char *line)
     return command;
 }
 
+/**
+ * @brief Parses a function definition.
+ *
+ * @param line The line to be processed.
+ * @return The parsed command.
+ */
 Command parseFunctionDefine(char *line)
 {
     Command command;
@@ -123,6 +141,13 @@ Command parseFunctionDefine(char *line)
     return command;
 }
 
+/**
+ * @brief Parses a function return statement.
+ * 
+ * @param line The line to be processed.
+ * @param command The command to be processed.
+ * @return The parsed command.
+ */
 Command parseFunctionReturn(char *line, Command command)
 {
     command.type = FUNCTION_RETURN;
@@ -131,6 +156,14 @@ Command parseFunctionReturn(char *line, Command command)
     return command;
 }
 
+/**
+ * @brief Finds the index of a function in the list of functions.
+ *
+ * @param line The line to be processed.
+ * @param commandFunctions The list of functions.
+ * @param functionCount The number of functions.
+ * @return The index of the function in `commandFunctions` else `-1`.
+ */
 int getFunctionIndex(char *line, Command commandFunctions[], int functionCount)
 {
     char functionName[IDENTIFIER_LENGTH];
@@ -145,6 +178,13 @@ int getFunctionIndex(char *line, Command commandFunctions[], int functionCount)
     return -1;
 }
 
+/**
+ * @brief Parses a function call.
+ *
+ * @param line The line to be processed.
+ * @param command The command to be processed.
+ * @return The parsed command.
+ */
 Command parseFunctionCall(char *line, Command command)
 {
     command.type = FUNCTION_CALL;
@@ -183,6 +223,14 @@ Command parsePrint(char *line)
     return command;
 }
 
+/**
+ * @brief Parses a function line.
+ *
+ * @param line The line to be processed.
+ * @param commandFunctions The functions to which the command belongs.
+ * @param functionCount The number of functions.
+ * @return The parsed command.
+ */
 void parseFunctionPrint(char *line, Function *func)
 {
     func->commands[func->statementCount].type = PRINT;
@@ -194,6 +242,13 @@ void parseFunctionPrint(char *line, Function *func)
     func->statementCount++;
 }
 
+/**
+ * @brief Parses an assignment command.
+ *
+ * @param line The line to be processed.
+ * @param func The function to which the command belongs.
+ * @return `void`
+ */
 void parseFunctionAssign(char *line, Function *func)
 {
     Command command;
@@ -213,6 +268,8 @@ void parseFunctionAssign(char *line, Function *func)
  * @param newFilenameWithExt The new file to be created, including the extension.
  * @param commands The commands to be written to the file.
  * @param commandCount The number of commands to be written to the file.
+ * @param commandFunctions The functions to be written to the file.
+ * @param functionCount The number of functions to be written to the file.
  * @return `void`
  */
 void createFile(const char *newFilenameWithExt, Command commands[], int commandCount, Command commandFunctions[], int functionCount)
@@ -232,6 +289,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
             fprintf(file, "double %s = %f;\n", commands[i].var.name, commands[i].var.value);
             fflush(stdout);
             break;
+            
         default:
             break;
         }
@@ -288,6 +346,7 @@ void createFile(const char *newFilenameWithExt, Command commands[], int commandC
             }
             fflush(stdout);
             break;
+
         case FUNCTION_CALL:
             printf(RED "@ Command type: FUNCTION_CALL(%d), Function name: %s\n" RESET, commands[i].type, commands[i].func->name);
             fprintf(file, "\t%s(", commands[i].func->name);
@@ -440,6 +499,12 @@ int isValidExpression(const char *expression)
     return parenthesis_count == 0; // Ensure all parentheses are matched
 }
 
+/**
+ * @brief Validates the syntax of a line.
+ *
+ * @param line The line to be validated.
+ * @return `void`
+ */
 void validateSyntax(char *line)
 {
     // Check if line is an assignment
@@ -522,15 +587,19 @@ void generateCode(const char *filename, const char *newFilenameWithExt)
             functionIndex = -1;
         } else if (insideFunction && strstr(line, "<-") != NULL) {
             // Handle assignment inside a function
+            validateSyntax(line);
             parseFunctionAssign(line, commandFunctions[functionIndex].func);
         } else if (!insideFunction && strstr(line, "<-") != NULL) {
             // Handle assignment outside a function (global scope)
+            validateSyntax(line);
             commands[commandCount++] = parseAssignment(line);
         } else if ((strncmp(line, "print", 5) == 0 && (line[5] == '\0' || isspace(line[5]))) && !insideFunction) {
             // Standalone print statement in global scope
+            validateSyntax(line);
             commands[commandCount++] = parsePrint(line);
         } else if (insideFunction && strstr(line, "print") != NULL) {
             // Print statement inside a function
+            validateSyntax(line);
             parseFunctionPrint(line, commandFunctions[functionIndex].func);
         } else if ((strstr(line, "(") != NULL) && (strstr(line, ")") != NULL)) {
             // Handle function call
@@ -565,21 +634,19 @@ void DEV_TOOL_REMOVE_ML(void)
 int main(int argc, char *argv[])
 {
     if (argc != 2) {
-        fprintf(stderr, "!Error: Incorrect number of arguments.\n");
+        fprintf(stderr, "!Error: Incorrect number of arguments. Expected 2 instead received %d.\n", argc);
         exit(EXIT_FAILURE);
     }
 
     char *newFilenameWithExt = createFilename(INCLUDE_EXT);
     char *newFilenameWithoutExt = createFilename(EXCLUDE_EXT);
 
-    DEV_TOOL_REMOVE_ML();
-
     generateCode(argv[1], newFilenameWithExt);
     compile(newFilenameWithoutExt);
     run(newFilenameWithoutExt);
 
-    // removeFile(newFilenameWithoutExt);
-    // removeFile(newFilenameWithExt);
+    removeFile(newFilenameWithoutExt);
+    removeFile(newFilenameWithExt);
 
     free(newFilenameWithExt);
     free(newFilenameWithoutExt);
