@@ -1,5 +1,6 @@
 *
 
+!assumptions.md
 !samples/**
 !.gitignore
 !runml.c
